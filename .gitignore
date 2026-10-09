@@ -3,3 +3,11 @@ node_modules/
 *.log
 dist/
 .DS_Store
+# Added by code-review-graph
+.code-review-graph/
+.github/
+.vscode/
+.mcp.json
+.opencode.json
+AGENTS.md
+.cursorrules

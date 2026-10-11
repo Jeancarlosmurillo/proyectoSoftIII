@@ -247,7 +247,7 @@ describe('PATCH /api/casos/:id/estado', () => {
 
     const res = await request(app)
       .patch(`/api/casos/${casoId}/estado`)
-      .send({ estado: 'Cerrada', usuario_id: 2 });
+      .send({ estado: 'En atención', usuario_id: 2 });
 
     expect(res.status).toBe(409);
     expect(res.body.error).toBe('TRANSICION_INVALIDA');
@@ -315,6 +315,7 @@ describe('PATCH /api/casos/:id/estado', () => {
 
     const casoId = crearRes.body.id;
 
+    await request(app).post(`/api/casos/${casoId}/asignar`).send({ usuario_id: 2 });
     await request(app).patch(`/api/casos/${casoId}/estado`).send({ estado: 'En análisis', usuario_id: 2 });
     await request(app).patch(`/api/casos/${casoId}/estado`).send({ estado: 'En atención', usuario_id: 2 });
     await request(app).patch(`/api/casos/${casoId}/estado`).send({ estado: 'En validación', usuario_id: 2 });
@@ -324,7 +325,9 @@ describe('PATCH /api/casos/:id/estado', () => {
       [casoId, 'Falla de red', 'Reinicio de router', 2]
     );
 
-    await request(app).patch(`/api/casos/${casoId}/estado`).send({ estado: 'Cerrada', usuario_id: 2 });
+    await request(app)
+      .post(`/api/casos/${casoId}/validacion`)
+      .send({ accion: 'aprobar', usuario_id: 3 });
 
     const res = await request(app)
       .patch(`/api/casos/${casoId}/estado`)
@@ -332,5 +335,338 @@ describe('PATCH /api/casos/:id/estado', () => {
 
     expect(res.status).toBe(409);
     expect(res.body.error).toBe('ESTADO_CONFLICTO');
+  });
+});
+
+describe('POST /api/casos/:id/asignar', () => {
+  test('CP-06: Agente se asigna un caso', async () => {
+    const crearRes = await request(app)
+      .post('/api/casos')
+      .send({
+        tipo: 'Incidente',
+        titulo: 'Test asignación',
+        descripcion: 'Descripción de prueba para asignación',
+        prioridad: 'P2',
+        usuario_id: 1,
+        categoria_id: 1
+      });
+
+    const casoId = crearRes.body.id;
+
+    const res = await request(app)
+      .post(`/api/casos/${casoId}/asignar`)
+      .send({ usuario_id: 2 });
+
+    expect(res.status).toBe(200);
+    expect(res.body.agente_id).toBe(2);
+    expect(res.body.fecha_asignacion).toBeDefined();
+  });
+
+  test('Rechazar asignación si ya tiene agente (409)', async () => {
+    const crearRes = await request(app)
+      .post('/api/casos')
+      .send({
+        tipo: 'Incidente',
+        titulo: 'Test duplicado',
+        descripcion: 'Descripción de prueba para duplicado',
+        prioridad: 'P2',
+        usuario_id: 1,
+        categoria_id: 1
+      });
+
+    const casoId = crearRes.body.id;
+
+    await request(app).post(`/api/casos/${casoId}/asignar`).send({ usuario_id: 2 });
+
+    const res = await request(app)
+      .post(`/api/casos/${casoId}/asignar`)
+      .send({ usuario_id: 2 });
+
+    expect(res.status).toBe(409);
+    expect(res.body.error).toBe('CASO_YA_ASIGNADO');
+  });
+
+  test('Rechazar asignación por solicitante (403)', async () => {
+    const crearRes = await request(app)
+      .post('/api/casos')
+      .send({
+        tipo: 'Incidente',
+        titulo: 'Test permiso asignar',
+        descripcion: 'Descripción de prueba para permiso asignar',
+        prioridad: 'P2',
+        usuario_id: 1,
+        categoria_id: 1
+      });
+
+    const casoId = crearRes.body.id;
+
+    const res = await request(app)
+      .post(`/api/casos/${casoId}/asignar`)
+      .send({ usuario_id: 1 });
+
+    expect(res.status).toBe(403);
+    expect(res.body.error).toBe('SIN_PERMISO');
+  });
+});
+
+describe('POST /api/casos/:id/atencion', () => {
+  test('CP-07: Agente asignado registra atención', async () => {
+    const crearRes = await request(app)
+      .post('/api/casos')
+      .send({
+        tipo: 'Incidente',
+        titulo: 'Test atención',
+        descripcion: 'Descripción de prueba para atención',
+        prioridad: 'P2',
+        usuario_id: 1,
+        categoria_id: 1
+      });
+
+    const casoId = crearRes.body.id;
+
+    await request(app).post(`/api/casos/${casoId}/asignar`).send({ usuario_id: 2 });
+    await request(app).patch(`/api/casos/${casoId}/estado`).send({ estado: 'En análisis', usuario_id: 2 });
+    await request(app).patch(`/api/casos/${casoId}/estado`).send({ estado: 'En atención', usuario_id: 2 });
+
+    const res = await request(app)
+      .post(`/api/casos/${casoId}/atencion`)
+      .send({
+        diagnostico: 'Falla en el access point',
+        solucion: 'Reemplazo del equipo',
+        usuario_id: 2
+      });
+
+    expect(res.status).toBe(201);
+    expect(res.body.diagnostico).toBe('Falla en el access point');
+    expect(res.body.solucion).toBe('Reemplazo del equipo');
+    expect(res.body.agente_id).toBe(2);
+  });
+
+  test('Rechazar atención por agente no asignado (403)', async () => {
+    const crearRes = await request(app)
+      .post('/api/casos')
+      .send({
+        tipo: 'Incidente',
+        titulo: 'Test atención no asignado',
+        descripcion: 'Descripción de prueba para atención no asignado',
+        prioridad: 'P2',
+        usuario_id: 1,
+        categoria_id: 1
+      });
+
+    const casoId = crearRes.body.id;
+
+    await request(app).post(`/api/casos/${casoId}/asignar`).send({ usuario_id: 2 });
+    await request(app).patch(`/api/casos/${casoId}/estado`).send({ estado: 'En análisis', usuario_id: 2 });
+    await request(app).patch(`/api/casos/${casoId}/estado`).send({ estado: 'En atención', usuario_id: 2 });
+
+    await db.query(
+      `INSERT INTO usuario (nombre, correo, rol) VALUES ('Otro Agente', 'otro@test.com', 'agente') ON CONFLICT (correo) DO NOTHING`
+    );
+    const otroAgente = await db.query(`SELECT id FROM usuario WHERE correo = 'otro@test.com'`);
+
+    const res = await request(app)
+      .post(`/api/casos/${casoId}/atencion`)
+      .send({
+        diagnostico: 'Diagnóstico de otro agente',
+        solucion: 'Solución de otro agente',
+        usuario_id: otroAgente.rows[0].id
+      });
+
+    expect(res.status).toBe(403);
+    expect(res.body.error).toBe('SIN_PERMISO');
+  });
+
+  test('Rechazar atención si el caso no está En atención (409)', async () => {
+    const crearRes = await request(app)
+      .post('/api/casos')
+      .send({
+        tipo: 'Incidente',
+        titulo: 'Test atención estado',
+        descripcion: 'Descripción de prueba para atención estado',
+        prioridad: 'P2',
+        usuario_id: 1,
+        categoria_id: 1
+      });
+
+    const casoId = crearRes.body.id;
+
+    await request(app).post(`/api/casos/${casoId}/asignar`).send({ usuario_id: 2 });
+
+    const res = await request(app)
+      .post(`/api/casos/${casoId}/atencion`)
+      .send({
+        diagnostico: 'Diagnóstico prematuro',
+        solucion: 'Solución prematura',
+        usuario_id: 2
+      });
+
+    expect(res.status).toBe(409);
+    expect(res.body.error).toBe('ESTADO_INVALIDO');
+  });
+});
+
+describe('POST /api/casos/:id/validacion', () => {
+  test('CP-08: Validador devuelve un caso', async () => {
+    const crearRes = await request(app)
+      .post('/api/casos')
+      .send({
+        tipo: 'Incidente',
+        titulo: 'Test devolución',
+        descripcion: 'Descripción de prueba para devolución',
+        prioridad: 'P2',
+        usuario_id: 1,
+        categoria_id: 1
+      });
+
+    const casoId = crearRes.body.id;
+
+    await request(app).post(`/api/casos/${casoId}/asignar`).send({ usuario_id: 2 });
+    await request(app).patch(`/api/casos/${casoId}/estado`).send({ estado: 'En análisis', usuario_id: 2 });
+    await request(app).patch(`/api/casos/${casoId}/estado`).send({ estado: 'En atención', usuario_id: 2 });
+    await request(app).patch(`/api/casos/${casoId}/estado`).send({ estado: 'En validación', usuario_id: 2 });
+
+    const res = await request(app)
+      .post(`/api/casos/${casoId}/validacion`)
+      .send({ accion: 'devolver', comentario: 'Falta información', usuario_id: 3 });
+
+    expect(res.status).toBe(200);
+    expect(res.body.estado).toBe('En atención');
+  });
+
+  test('CP-09: Validador aprueba un caso', async () => {
+    const crearRes = await request(app)
+      .post('/api/casos')
+      .send({
+        tipo: 'Incidente',
+        titulo: 'Test aprobación',
+        descripcion: 'Descripción de prueba para aprobación',
+        prioridad: 'P2',
+        usuario_id: 1,
+        categoria_id: 1
+      });
+
+    const casoId = crearRes.body.id;
+
+    await request(app).post(`/api/casos/${casoId}/asignar`).send({ usuario_id: 2 });
+    await request(app).patch(`/api/casos/${casoId}/estado`).send({ estado: 'En análisis', usuario_id: 2 });
+    await request(app).patch(`/api/casos/${casoId}/estado`).send({ estado: 'En atención', usuario_id: 2 });
+    await request(app).patch(`/api/casos/${casoId}/estado`).send({ estado: 'En validación', usuario_id: 2 });
+
+    const res = await request(app)
+      .post(`/api/casos/${casoId}/validacion`)
+      .send({ accion: 'aprobar', usuario_id: 3 });
+
+    expect(res.status).toBe(200);
+    expect(res.body.estado).toBe('Cerrada');
+    expect(res.body.fecha_cierre).toBeDefined();
+  });
+
+  test('Rechazar validación por solicitante (403)', async () => {
+    const crearRes = await request(app)
+      .post('/api/casos')
+      .send({
+        tipo: 'Incidente',
+        titulo: 'Test validación solicitante',
+        descripcion: 'Descripción de prueba para validación solicitante',
+        prioridad: 'P2',
+        usuario_id: 1,
+        categoria_id: 1
+      });
+
+    const casoId = crearRes.body.id;
+
+    await request(app).post(`/api/casos/${casoId}/asignar`).send({ usuario_id: 2 });
+    await request(app).patch(`/api/casos/${casoId}/estado`).send({ estado: 'En análisis', usuario_id: 2 });
+    await request(app).patch(`/api/casos/${casoId}/estado`).send({ estado: 'En atención', usuario_id: 2 });
+    await request(app).patch(`/api/casos/${casoId}/estado`).send({ estado: 'En validación', usuario_id: 2 });
+
+    const res = await request(app)
+      .post(`/api/casos/${casoId}/validacion`)
+      .send({ accion: 'aprobar', usuario_id: 1 });
+
+    expect(res.status).toBe(403);
+    expect(res.body.error).toBe('SIN_PERMISO');
+  });
+
+  test('Rechazar validación por agente (403)', async () => {
+    const crearRes = await request(app)
+      .post('/api/casos')
+      .send({
+        tipo: 'Incidente',
+        titulo: 'Test validación agente',
+        descripcion: 'Descripción de prueba para validación agente',
+        prioridad: 'P2',
+        usuario_id: 1,
+        categoria_id: 1
+      });
+
+    const casoId = crearRes.body.id;
+
+    await request(app).post(`/api/casos/${casoId}/asignar`).send({ usuario_id: 2 });
+    await request(app).patch(`/api/casos/${casoId}/estado`).send({ estado: 'En análisis', usuario_id: 2 });
+    await request(app).patch(`/api/casos/${casoId}/estado`).send({ estado: 'En atención', usuario_id: 2 });
+    await request(app).patch(`/api/casos/${casoId}/estado`).send({ estado: 'En validación', usuario_id: 2 });
+
+    const res = await request(app)
+      .post(`/api/casos/${casoId}/validacion`)
+      .send({ accion: 'aprobar', usuario_id: 2 });
+
+    expect(res.status).toBe(403);
+    expect(res.body.error).toBe('SIN_PERMISO');
+  });
+
+  test('Rechazar Cerrada sin atención por PATCH (409)', async () => {
+    const crearRes = await request(app)
+      .post('/api/casos')
+      .send({
+        tipo: 'Incidente',
+        titulo: 'Test cerrar sin atención',
+        descripcion: 'Descripción de prueba para cerrar sin atención',
+        prioridad: 'P2',
+        usuario_id: 1,
+        categoria_id: 1
+      });
+
+    const casoId = crearRes.body.id;
+
+    await request(app).post(`/api/casos/${casoId}/asignar`).send({ usuario_id: 2 });
+    await request(app).patch(`/api/casos/${casoId}/estado`).send({ estado: 'En análisis', usuario_id: 2 });
+    await request(app).patch(`/api/casos/${casoId}/estado`).send({ estado: 'En atención', usuario_id: 2 });
+    await request(app).patch(`/api/casos/${casoId}/estado`).send({ estado: 'En validación', usuario_id: 2 });
+
+    const res = await request(app)
+      .patch(`/api/casos/${casoId}/estado`)
+      .send({ estado: 'Cerrada', usuario_id: 2 });
+
+    expect(res.status).toBe(409);
+    expect(res.body.error).toBe('TRANSICION_INVALIDA');
+  });
+
+  test('Rechazar transición desde En validación por PATCH (409)', async () => {
+    const crearRes = await request(app)
+      .post('/api/casos')
+      .send({
+        tipo: 'Incidente',
+        titulo: 'Test transición validación',
+        descripcion: 'Descripción de prueba para transición validación',
+        prioridad: 'P2',
+        usuario_id: 1,
+        categoria_id: 1
+      });
+
+    const casoId = crearRes.body.id;
+
+    await request(app).post(`/api/casos/${casoId}/asignar`).send({ usuario_id: 2 });
+    await request(app).patch(`/api/casos/${casoId}/estado`).send({ estado: 'En análisis', usuario_id: 2 });
+    await request(app).patch(`/api/casos/${casoId}/estado`).send({ estado: 'En atención', usuario_id: 2 });
+    await request(app).patch(`/api/casos/${casoId}/estado`).send({ estado: 'En validación', usuario_id: 2 });
+
+    const res = await request(app)
+      .patch(`/api/casos/${casoId}/estado`)
+      .send({ estado: 'Cerrada', usuario_id: 2 });
+
+    expect(res.status).toBe(409);
+    expect(res.body.error).toBe('TRANSICION_INVALIDA');
   });
 });

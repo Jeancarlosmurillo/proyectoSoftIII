@@ -171,6 +171,82 @@ Lista el historial de eventos de un caso en orden cronológico.
 
 ---
 
+### POST /api/casos/{id}/asignar
+
+Un agente se asigna un caso. Registra `agente_id`, `fecha_asignacion` y crea evento en historial.
+
+**Cuerpo:**
+| Campo | Tipo | Requerido |
+|-------|------|-----------|
+| `usuario_id` | integer | Sí (debe ser agente) |
+
+**Respuesta 200:** caso actualizado con agente asignado
+
+**Errores:**
+- **400** `DATOS_INVALIDOS` — usuario_id faltante
+- **401** `NO_AUTORIZADO` — usuario no válido
+- **403** `SIN_PERMISO` — solo agentes pueden asignarse casos
+- **404** `NO_ENCONTRADO` — caso no existe
+- **409** `CASO_YA_ASIGNADO` — el caso ya tiene agente asignado
+
+---
+
+### POST /api/casos/{id}/atencion
+
+El agente asignado registra diagnóstico y solución. El caso debe estar en estado "En atención".
+
+**Cuerpo:**
+| Campo | Tipo | Requerido |
+|-------|------|-----------|
+| `diagnostico` | string | Sí |
+| `solucion` | string | Sí |
+| `usuario_id` | integer | Sí (debe ser el agente asignado) |
+
+**Respuesta 201:**
+```json
+{
+  "id": 1,
+  "caso_id": 1,
+  "diagnostico": "Falla en el access point",
+  "solucion": "Reemplazo del equipo",
+  "fecha": "2026-10-10T15:00:00.000Z",
+  "agente_id": 2
+}
+```
+
+**Errores:**
+- **400** `DATOS_INVALIDOS` — diagnostico, solucion o usuario_id faltantes
+- **403** `SIN_PERMISO` — solo el agente asignado puede registrar atención
+- **404** `NO_ENCONTRADO` — caso no existe
+- **409** `ESTADO_INVALIDO` — el caso no está en "En atención"
+
+---
+
+### POST /api/casos/{id}/validacion
+
+El validador aprueba o devuelve un caso en estado "En validación". Solo rol **validador**.
+
+**Cuerpo:**
+| Campo | Tipo | Requerido |
+|-------|------|-----------|
+| `accion` | string | Sí — "aprobar" o "devolver" |
+| `comentario` | string | No — comentario de devolución |
+| `usuario_id` | integer | Sí (debe ser validador) |
+
+**Respuesta 200:** caso actualizado
+
+- **aprobar** → estado `Cerrada` con `fecha_cierre`
+- **devolver** → estado `En atención`
+
+**Errores:**
+- **400** `DATOS_INVALIDOS` — accion o usuario_id faltantes
+- **401** `NO_AUTORIZADO` — usuario no válido
+- **403** `SIN_PERMISO` — solo validadores pueden validar casos
+- **404** `NO_ENCONTRADO` — caso no existe
+- **409** `ESTADO_INVALIDO` — el caso no está en "En validación"
+
+---
+
 ### PATCH /api/casos/{id}/estado
 
 Cambia el estado de un caso. Solo roles **agente** o **administrador**. Genera evento en historial dentro de la misma transacción.
@@ -179,8 +255,10 @@ Cambia el estado de un caso. Solo roles **agente** o **administrador**. Genera e
 - Pendiente → En análisis
 - En análisis → En atención
 - En atención → En validación
-- En validación → Cerrada
-- En validación → En atención (devolución)
+
+**Restricciones:**
+- No se puede pasar a `Cerrada` sin una atención registrada
+- Las transiciones desde `En validación` solo se hacen por el endpoint de validación
 
 **Cuerpo:**
 | Campo | Tipo | Requerido |

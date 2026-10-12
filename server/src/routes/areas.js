@@ -7,7 +7,7 @@ router.get('/', async (req, res) => {
     const result = await db.query('SELECT * FROM area WHERE activa = TRUE');
     res.json(result.rows);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'INTERNO', mensaje: 'Error interno del servidor' });
   }
 });
 

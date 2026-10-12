@@ -38,61 +38,97 @@ const casosController = {
       return res.status(400).json({ error: 'DATOS_INVALIDOS', mensaje: errores.join('; ') });
     }
 
+    const client = await db.pool.connect();
+
     try {
-      const catResult = await db.query(
+      await client.query('BEGIN');
+
+      const catResult = await client.query(
         'SELECT id FROM categoria WHERE id = $1 AND activa = TRUE',
         [categoria_id]
       );
       if (catResult.rows.length === 0) {
+        await client.query('ROLLBACK');
         return res.status(400).json({
           error: 'CATEGORIA_INVALIDA',
           mensaje: 'La categoría no existe o está inactiva'
         });
       }
 
-      const result = await db.query(
+      const result = await client.query(
         `INSERT INTO caso (tipo, titulo, descripcion, prioridad, usuario_id, categoria_id)
          VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
         [tipo, titulo, descripcion, prioridad, usuario_id, categoria_id]
       );
 
-      await db.query(
+      await client.query(
         `INSERT INTO historial (caso_id, evento, estado_nuevo, usuario_id)
          VALUES ($1, 'Caso creado', 'Pendiente', $2)`,
         [result.rows[0].id, usuario_id]
       );
 
+      await client.query('COMMIT');
+
       res.status(201).json(result.rows[0]);
     } catch (error) {
+      await client.query('ROLLBACK');
       res.status(500).json({ error: 'INTERNO', mensaje: 'Error interno del servidor' });
+    } finally {
+      client.release();
     }
   },
 
   listarCasos: async (req, res) => {
-    const { usuario_id, estado, tipo, prioridad } = req.query;
+    const { usuario_id, estado, tipo, prioridad, area_id, categoria_id } = req.query;
 
-    let sql = 'SELECT * FROM caso WHERE 1=1';
+    const errores = [];
+    if (estado && !['Pendiente', 'En análisis', 'En atención', 'En validación', 'Cerrada'].includes(estado)) {
+      errores.push('estado: valor inválido');
+    }
+    if (tipo && !['Incidente', 'Solicitud'].includes(tipo)) {
+      errores.push('tipo: valor inválido');
+    }
+    if (prioridad && !['P1', 'P2', 'P3'].includes(prioridad)) {
+      errores.push('prioridad: valor inválido');
+    }
+    if (errores.length > 0) {
+      return res.status(400).json({ error: 'FILTRO_INVALIDO', mensaje: errores.join('; ') });
+    }
+
+    let sql = 'SELECT c.* FROM caso c';
     const params = [];
     let paramIndex = 1;
 
+    if (area_id) {
+      sql += ' JOIN categoria cat ON c.categoria_id = cat.id';
+    }
+    sql += ' WHERE 1=1';
+    if (area_id) {
+      sql += ` AND cat.area_id = $${paramIndex++}`;
+      params.push(area_id);
+    }
     if (usuario_id) {
-      sql += ` AND usuario_id = $${paramIndex++}`;
+      sql += ` AND c.usuario_id = $${paramIndex++}`;
       params.push(usuario_id);
     }
     if (estado) {
-      sql += ` AND estado = $${paramIndex++}`;
+      sql += ` AND c.estado = $${paramIndex++}`;
       params.push(estado);
     }
     if (tipo) {
-      sql += ` AND tipo = $${paramIndex++}`;
+      sql += ` AND c.tipo = $${paramIndex++}`;
       params.push(tipo);
     }
     if (prioridad) {
-      sql += ` AND prioridad = $${paramIndex++}`;
+      sql += ` AND c.prioridad = $${paramIndex++}`;
       params.push(prioridad);
     }
+    if (categoria_id) {
+      sql += ` AND c.categoria_id = $${paramIndex++}`;
+      params.push(categoria_id);
+    }
 
-    sql += ' ORDER BY fecha_creacion DESC';
+    sql += ' ORDER BY c.fecha_creacion DESC';
 
     try {
       const result = await db.query(sql, params);

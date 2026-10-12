@@ -670,3 +670,219 @@ describe('POST /api/casos/:id/validacion', () => {
     expect(res.body.error).toBe('TRANSICION_INVALIDA');
   });
 });
+
+describe('GET /api/casos - filtros combinables', () => {
+  test('CP-10: Filtrar por área, tipo y prioridad combinados', async () => {
+    await request(app).post('/api/casos').send({
+      tipo: 'Incidente',
+      titulo: 'Test filtro área',
+      descripcion: 'Descripción de prueba para filtro por área',
+      prioridad: 'P1',
+      usuario_id: 1,
+      categoria_id: 1
+    });
+
+    await request(app).post('/api/casos').send({
+      tipo: 'Solicitud',
+      titulo: 'Test filtro área 2',
+      descripcion: 'Descripción de prueba para filtro por área 2',
+      prioridad: 'P2',
+      usuario_id: 1,
+      categoria_id: 4
+    });
+
+    const res = await request(app).get('/api/casos?area_id=1&tipo=Incidente&prioridad=P1');
+
+    expect(res.status).toBe(200);
+    res.body.forEach(caso => {
+      expect(caso.tipo).toBe('Incidente');
+      expect(caso.prioridad).toBe('P1');
+    });
+  });
+
+  test('Rechazar filtro con estado inválido (400)', async () => {
+    const res = await request(app).get('/api/casos?estado=Devuelta');
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('FILTRO_INVALIDO');
+  });
+
+  test('Rechazar filtro con tipo inválido (400)', async () => {
+    const res = await request(app).get('/api/casos?tipo=Reclamo');
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('FILTRO_INVALIDO');
+  });
+
+  test('Filtrar por categoria_id', async () => {
+    const res = await request(app).get('/api/casos?categoria_id=1');
+    expect(res.status).toBe(200);
+    res.body.forEach(caso => {
+      expect(caso.categoria_id).toBe(1);
+    });
+  });
+});
+
+describe('GET /api/indicadores', () => {
+  test('Obtener indicadores', async () => {
+    await request(app).post('/api/casos').send({
+      tipo: 'Incidente',
+      titulo: 'Test indicadores',
+      descripcion: 'Descripción de prueba para indicadores',
+      prioridad: 'P1',
+      usuario_id: 1,
+      categoria_id: 1
+    });
+
+    const res = await request(app).get('/api/indicadores');
+
+    expect(res.status).toBe(200);
+    expect(res.body.casos_por_estado).toBeDefined();
+    expect(res.body.casos_por_tipo).toBeDefined();
+    expect(res.body.casos_por_prioridad).toBeDefined();
+    expect(res.body.tiempo_promedio_atencion_horas).toBeDefined();
+    expect(res.body.tiempo_promedio_asignacion_horas).toBeDefined();
+  });
+});
+
+describe('POST /api/categorias', () => {
+  test('Crear categoría como administrador', async () => {
+    const nombreUnico = `Nueva Categoría ${Date.now()}`;
+    const res = await request(app)
+      .post('/api/categorias')
+      .send({
+        nombre: nombreUnico,
+        descripcion: 'Descripción de prueba',
+        area_id: 1,
+        usuario_id: 4
+      });
+
+    expect(res.status).toBe(201);
+    expect(res.body.nombre).toBe(nombreUnico);
+    expect(res.body.activa).toBe(true);
+  });
+
+  test('Rechazar crear categoría como agente (403)', async () => {
+    const res = await request(app)
+      .post('/api/categorias')
+      .send({
+        nombre: 'Categoría no permitida',
+        descripcion: 'Descripción de prueba',
+        area_id: 1,
+        usuario_id: 2
+      });
+
+    expect(res.status).toBe(403);
+    expect(res.body.error).toBe('SIN_PERMISO');
+  });
+
+  test('Rechazar crear categoría con área inexistente (400)', async () => {
+    const res = await request(app)
+      .post('/api/categorias')
+      .send({
+        nombre: 'Categoría sin área',
+        descripcion: 'Descripción de prueba',
+        area_id: 9999,
+        usuario_id: 4
+      });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('AREA_INVALIDA');
+  });
+});
+
+describe('PATCH /api/categorias/:id', () => {
+  test('Editar categoría como administrador', async () => {
+    const catResult = await db.query(
+      `SELECT c.id FROM categoria c
+       WHERE NOT EXISTS (SELECT 1 FROM caso ca WHERE ca.categoria_id = c.id)
+       LIMIT 1`
+    );
+    if (catResult.rows.length === 0) return;
+
+    const catId = catResult.rows[0].id;
+    const nombreUnico = `Categoría editada ${Date.now()}`;
+    const res = await request(app)
+      .patch(`/api/categorias/${catId}`)
+      .send({
+        nombre: nombreUnico,
+        usuario_id: 4
+      });
+
+    expect(res.status).toBe(200);
+    expect(res.body.nombre).toBe(nombreUnico);
+  });
+
+  test('Desactivar categoría como administrador', async () => {
+    const catResult = await db.query(
+      `SELECT c.id FROM categoria c
+       WHERE NOT EXISTS (SELECT 1 FROM caso ca WHERE ca.categoria_id = c.id)
+       LIMIT 1`
+    );
+    if (catResult.rows.length === 0) return;
+
+    const catId = catResult.rows[0].id;
+    const res = await request(app)
+      .patch(`/api/categorias/${catId}/activar`)
+      .send({ activa: false, usuario_id: 4 });
+
+    expect(res.status).toBe(200);
+    expect(res.body.activa).toBe(false);
+  });
+
+  test('Rechazar desactivar categoría con casos (409)', async () => {
+    const casoResult = await db.query('SELECT categoria_id FROM caso LIMIT 1');
+    if (casoResult.rows.length > 0) {
+      const catId = casoResult.rows[0].categoria_id;
+      const res = await request(app)
+        .patch(`/api/categorias/${catId}/activar`)
+        .send({ activa: false, usuario_id: 4 });
+
+      expect(res.status).toBe(409);
+      expect(res.body.error).toBe('CATEGORIA_EN_USO');
+    }
+  });
+});
+
+describe('Flujo completo - integración', () => {
+  test('Registrar → Asignar → Atender → Validar → Cerrar', async () => {
+    const crearRes = await request(app)
+      .post('/api/casos')
+      .send({
+        tipo: 'Incidente',
+        titulo: 'Test integración',
+        descripcion: 'Descripción de prueba para integración',
+        prioridad: 'P2',
+        usuario_id: 1,
+        categoria_id: 1
+      });
+
+    const casoId = crearRes.body.id;
+    expect(crearRes.body.estado).toBe('Pendiente');
+
+    await request(app).post(`/api/casos/${casoId}/asignar`).send({ usuario_id: 2 });
+
+    await request(app).patch(`/api/casos/${casoId}/estado`).send({ estado: 'En análisis', usuario_id: 2 });
+    await request(app).patch(`/api/casos/${casoId}/estado`).send({ estado: 'En atención', usuario_id: 2 });
+
+    await request(app)
+      .post(`/api/casos/${casoId}/atencion`)
+      .send({
+        diagnostico: 'Falla de red',
+        solucion: 'Reinicio de router',
+        usuario_id: 2
+      });
+
+    await request(app).patch(`/api/casos/${casoId}/estado`).send({ estado: 'En validación', usuario_id: 2 });
+
+    await request(app)
+      .post(`/api/casos/${casoId}/validacion`)
+      .send({ accion: 'aprobar', usuario_id: 3 });
+
+    const histRes = await request(app).get(`/api/casos/${casoId}/historial`);
+
+    expect(histRes.body.length).toBeGreaterThanOrEqual(6);
+    expect(histRes.body[0].evento).toBe('Caso creado');
+    expect(histRes.body[1].evento).toBe('Agente asignado');
+    expect(histRes.body[2].evento).toBe('Cambio de estado');
+    expect(histRes.body[histRes.body.length - 1].evento).toContain('Validación');
+  });
+});

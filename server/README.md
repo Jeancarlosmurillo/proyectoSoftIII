@@ -71,18 +71,40 @@ server/
 │   ├── config/
 │   │   └── database.js
 │   ├── controllers/
-│   │   └── casosController.js
+│   │   ├── casosController.js
+│   │   └── indicadoresController.js
 │   ├── middleware/
 │   │   └── validaciones.js
 │   └── routes/
 │       ├── casos.js
 │       ├── areas.js
 │       ├── categorias.js
-│       └── usuarios.js
+│       ├── usuarios.js
+│       └── indicadores.js
 └── tests/
     ├── casos.test.js
     └── setup.js
 ```
+
+## Endpoints
+
+| Método | Ruta | Descripción |
+|--------|------|-------------|
+| GET | /api/areas | Lista áreas activas |
+| GET | /api/categorias | Lista categorias activas (filtro: area_id) |
+| POST | /api/categorias | Crear categoría (solo admin) |
+| PATCH | /api/categorias/:id | Editar categoría (solo admin) |
+| PATCH | /api/categorias/:id/activar | Activar/desactivar categoría (solo admin) |
+| GET | /api/usuarios | Lista usuarios activos |
+| POST | /api/casos | Crear caso |
+| GET | /api/casos | Lista casos con filtros combinables |
+| GET | /api/casos/:id | Detalle de caso con atención |
+| GET | /api/casos/:id/historial | Historial de eventos |
+| POST | /api/casos/:id/asignar | Asignar agente |
+| POST | /api/casos/:id/atencion | Registrar atención |
+| POST | /api/casos/:id/validacion | Validar caso |
+| PATCH | /api/casos/:id/estado | Cambiar estado |
+| GET | /api/indicadores | Indicadores del sistema |
 
 ## Documentación de la API
 

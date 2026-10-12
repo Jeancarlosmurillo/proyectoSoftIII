@@ -91,6 +91,12 @@ const casosController = {
     if (prioridad && !['P1', 'P2', 'P3'].includes(prioridad)) {
       errores.push('prioridad: valor inválido');
     }
+    if (area_id && (!Number.isInteger(Number(area_id)) || Number(area_id) <= 0)) {
+      errores.push('area_id: debe ser un entero positivo');
+    }
+    if (categoria_id && (!Number.isInteger(Number(categoria_id)) || Number(categoria_id) <= 0)) {
+      errores.push('categoria_id: debe ser un entero positivo');
+    }
     if (errores.length > 0) {
       return res.status(400).json({ error: 'FILTRO_INVALIDO', mensaje: errores.join('; ') });
     }

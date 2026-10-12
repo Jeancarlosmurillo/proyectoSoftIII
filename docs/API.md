@@ -45,6 +45,73 @@ Lista categorías activas. Opcionalmente filtra por área.
 
 ---
 
+### POST /api/categorias
+
+Crea una nueva categoría. Solo rol **administrador**.
+
+**Cuerpo:**
+| Campo | Tipo | Requerido | Validación |
+|-------|------|-----------|------------|
+| `nombre` | string | Sí | No vacío, único |
+| `descripcion` | string | No | |
+| `area_id` | integer | Sí | Área debe existir |
+| `usuario_id` | integer | Sí | Debe ser administrador |
+
+**Respuesta 201:**
+```json
+{ "id": 19, "area_id": 1, "nombre": "Nueva Categoría", "descripcion": "Descripción", "activa": true }
+```
+
+**Errores:**
+- **400** `DATOS_INVALIDOS` — nombre o area_id faltantes
+- **400** `AREA_INVALIDA` — el área no existe
+- **403** `SIN_PERMISO` — solo administradores pueden crear categorías
+- **409** `CATEGORIA_DUPLICADA` — ya existe una categoría con ese nombre
+
+---
+
+### PATCH /api/categorias/:id
+
+Edita una categoría existente. Solo rol **administrador**.
+
+**Cuerpo:**
+| Campo | Tipo | Requerido | Descripción |
+|-------|------|-----------|-------------|
+| `nombre` | string | No | Nuevo nombre |
+| `descripcion` | string | No | Nueva descripción |
+| `area_id` | integer | No | Nueva área (debe existir) |
+| `usuario_id` | integer | Sí | Debe ser administrador |
+
+**Respuesta 200:** categoría actualizada
+
+**Errores:**
+- **400** `AREA_INVALIDA` — el área no existe
+- **403** `SIN_PERMISO` — solo administradores pueden editar categorías
+- **404** `NO_ENCONTRADO` — categoría no encontrada
+- **409** `CATEGORIA_DUPLICADA` — ya existe una categoría con ese nombre
+
+---
+
+### PATCH /api/categorias/:id/activar
+
+Activa o desactiva una categoría. Solo rol **administrador**. Una categoría con casos asociados no se puede desactivar.
+
+**Cuerpo:**
+| Campo | Tipo | Requerido | Descripción |
+|-------|------|-----------|-------------|
+| `activa` | boolean | Sí | true para activar, false para desactivar |
+| `usuario_id` | integer | Sí | Debe ser administrador |
+
+**Respuesta 200:** categoría actualizada
+
+**Errores:**
+- **400** `DATOS_INVALIDOS` — activa faltante
+- **403** `SIN_PERMISO` — solo administradores pueden activar/desactivar
+- **404** `NO_ENCONTRADO` — categoría no encontrada
+- **409** `CATEGORIA_EN_USO` — no se puede desactivar una categoría con casos asociados
+
+---
+
 ## Usuarios
 
 ### GET /api/usuarios
@@ -96,7 +163,7 @@ Crea un caso nuevo. Estado inicial: Pendiente. Fecha de creación automática.
 }
 ```
 
-**Erres:**
+**Errores:**
 - **400** `DATOS_INVALIDOS` — datos faltantes o inválidos
 - **400** `CATEGORIA_INVALIDA` — categoría inexistente o inactiva
 
@@ -104,7 +171,7 @@ Crea un caso nuevo. Estado inicial: Pendiente. Fecha de creación automática.
 
 ### GET /api/casos
 
-Lista casos con filtros opcionales.
+Lista casos con filtros opcionales combinables (AND).
 
 **Parámetros query:**
 | Nombre | Tipo | Descripción |
@@ -113,8 +180,13 @@ Lista casos con filtros opcionales.
 | `estado` | string | Filtra por estado |
 | `tipo` | string | Filtra por tipo |
 | `prioridad` | string | Filtra por prioridad |
+| `area_id` | integer | Filtra por área (vía categoría) |
+| `categoria_id` | integer | Filtra por categoría |
 
 **Respuesta 200:** array de casos (mismo formato que POST)
+
+**Errores:**
+- **400** `FILTRO_INVALIDO` — valor de filtro no válido
 
 ---
 
@@ -278,9 +350,33 @@ Cambia el estado de un caso. Solo roles **agente** o **administrador**. Genera e
 
 ---
 
-## Pendiente Sprint 2
+## Indicadores
 
-Las siguientes reglas dependen de la tabla `atencion` y serán implementadas en el Sprint 2:
-- Cerrar un caso requiere atención con solución registrada
-- Solo el agente asignado puede registrar atención
-- Asignar agente registra agente_id, fecha_asignacion y evento de historial
+### GET /api/indicadores
+
+Obtiene indicadores del sistema calculados con agregación en BD.
+
+**Parámetros:** ninguno
+
+**Respuesta 200:**
+```json
+{
+  "casos_por_estado": [
+    { "estado": "Pendiente", "total": "5" },
+    { "estado": "Cerrada", "total": "12" }
+  ],
+  "casos_por_tipo": [
+    { "tipo": "Incidente", "total": "10" },
+    { "tipo": "Solicitud", "total": "7" }
+  ],
+  "casos_por_prioridad": [
+    { "prioridad": "P1", "total": "3" },
+    { "prioridad": "P2", "total": "8" },
+    { "prioridad": "P3", "total": "6" }
+  ],
+  "tiempo_promedio_atencion_horas": 24.5,
+  "tiempo_promedio_asignacion_horas": 2.3
+}
+```
+
+**Nota sobre `tiempo_promedio_atencion_horas`:** cuando no hay casos cerrados, este campo retorna `null` (no 0). El frontend debe manejar este caso.

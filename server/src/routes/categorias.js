@@ -119,7 +119,7 @@ router.patch('/:id/activar', async (req, res) => {
       if (parseInt(casosResult.rows[0].count) > 0) {
         return res.status(409).json({
           error: 'CATEGORIA_EN_USO',
-          mensaje: 'No se puede eliminar una categoría con casos asociados'
+          mensaje: 'No se puede desactivar una categoría con casos asociados'
         });
       }
     }

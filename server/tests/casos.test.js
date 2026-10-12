@@ -171,6 +171,38 @@ describe('GET /api/casos/:id', () => {
     expect(res.status).toBe(200);
     expect(res.body.id).toBe(casoId);
     expect(res.body.titulo).toBe('Test detalle');
+    expect(res.body.atencion).toBeUndefined();
+  });
+
+  test('Detalle incluye solución cuando hay atención registrada', async () => {
+    const crearRes = await request(app)
+      .post('/api/casos')
+      .send({
+        tipo: 'Incidente',
+        titulo: 'Test detalle con atención',
+        descripcion: 'Descripción de prueba para detalle con atención',
+        prioridad: 'P2',
+        usuario_id: 1,
+        categoria_id: 1
+      });
+
+    const casoId = crearRes.body.id;
+    await request(app).post(`/api/casos/${casoId}/asignar`).send({ usuario_id: 2 });
+    await request(app).patch(`/api/casos/${casoId}/estado`).send({ estado: 'En análisis', usuario_id: 2 });
+    await request(app).patch(`/api/casos/${casoId}/estado`).send({ estado: 'En atención', usuario_id: 2 });
+    await request(app)
+      .post(`/api/casos/${casoId}/atencion`)
+      .send({
+        diagnostico: 'Falla en el access point',
+        solucion: 'Reemplazo del equipo',
+        usuario_id: 2
+      });
+
+    const res = await request(app).get(`/api/casos/${casoId}`);
+    expect(res.status).toBe(200);
+    expect(res.body.atencion).toBeDefined();
+    expect(res.body.atencion.solucion).toBe('Reemplazo del equipo');
+    expect(res.body.atencion.diagnostico).toBe('Falla en el access point');
   });
 
   test('Retornar 404 si caso no existe', async () => {
@@ -884,5 +916,89 @@ describe('Flujo completo - integración', () => {
     expect(histRes.body[1].evento).toBe('Agente asignado');
     expect(histRes.body[2].evento).toBe('Cambio de estado');
     expect(histRes.body[histRes.body.length - 1].evento).toContain('Validación');
+
+    const casoFinal = await request(app).get(`/api/casos/${casoId}`);
+    expect(casoFinal.body.estado).toBe('Cerrada');
+    expect(casoFinal.body.fecha_cierre).toBeDefined();
+    expect(casoFinal.body.atencion.solucion).toBe('Reinicio de router');
+  });
+});
+
+describe('Categorías - tests adicionales', () => {
+  test('POST /casos rechaza categoría inactiva', async () => {
+    const nombreCat = `Cat inactiva ${Date.now()}`;
+    const catRes = await request(app)
+      .post('/api/categorias')
+      .send({
+        nombre: nombreCat,
+        descripcion: 'Categoría para desactivar',
+        area_id: 1,
+        usuario_id: 4
+      });
+    const catId = catRes.body.id;
+
+    await request(app)
+      .patch(`/api/categorias/${catId}/activar`)
+      .send({ activa: false, usuario_id: 4 });
+
+    const res = await request(app)
+      .post('/api/casos')
+      .send({
+        tipo: 'Incidente',
+        titulo: 'Test categoría inactiva',
+        descripcion: 'Descripción de prueba para categoría inactiva',
+        prioridad: 'P2',
+        usuario_id: 1,
+        categoria_id: catId
+      });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('CATEGORIA_INVALIDA');
+  });
+
+  test('Reactivar categoría (activa: true)', async () => {
+    const nombreCat = `Cat reactivar ${Date.now()}`;
+    const catRes = await request(app)
+      .post('/api/categorias')
+      .send({
+        nombre: nombreCat,
+        descripcion: 'Categoría para reactivar',
+        area_id: 1,
+        usuario_id: 4
+      });
+    const catId = catRes.body.id;
+
+    await request(app)
+      .patch(`/api/categorias/${catId}/activar`)
+      .send({ activa: false, usuario_id: 4 });
+
+    const res = await request(app)
+      .patch(`/api/categorias/${catId}/activar`)
+      .send({ activa: true, usuario_id: 4 });
+
+    expect(res.status).toBe(200);
+    expect(res.body.activa).toBe(true);
+  });
+
+  test('GET /api/categorias con filtro por área', async () => {
+    const res = await request(app).get('/api/categorias?area_id=1');
+    expect(res.status).toBe(200);
+    res.body.forEach(cat => {
+      expect(cat.area_id).toBe(1);
+    });
+  });
+});
+
+describe('Filtros - validación area_id y categoria_id', () => {
+  test('Rechazar filtro con area_id inválido (400)', async () => {
+    const res = await request(app).get('/api/casos?area_id=abc');
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('FILTRO_INVALIDO');
+  });
+
+  test('Rechazar filtro con categoria_id inválido (400)', async () => {
+    const res = await request(app).get('/api/casos?categoria_id=-1');
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('FILTRO_INVALIDO');
   });
 });

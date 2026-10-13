@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useCasos } from '../context/CasosContext'
 import { useAuth } from '../context/AuthContext'
@@ -15,7 +16,9 @@ const categoriasVacias: Record<AreaTI, { id: number; nombre: string }[]> = {
 const initialForm: NuevoCaso = { tipo: 'Incidente', titulo: '', descripcion: '', prioridad: 'P1 urgente', usuario_id: 0, categoria_id: 0, area: 'Hardware' }
 
 export default function RegistroPage() {
-  const [form, setForm] = useState(initialForm)
+  const [areas, setAreas] = useState<Area[]>([])
+  const [categorias, setCategorias] = useState<Categoria[]>([])
+  const [form, setForm] = useState<NuevoCaso>({ tipo: 'Incidente', titulo: '', descripcion: '', prioridad: 'P1', usuario_id: 1, categoria_id: 1 })
   const [errors, setErrors] = useState<Record<string, string>>({})
   const { agregarCaso } = useCasos()
   const { usuarioActual, usuarios } = useAuth()
@@ -67,7 +70,6 @@ export default function RegistroPage() {
     event.preventDefault()
     const nextErrors: Record<string, string> = {}
     if (!form.tipo) nextErrors.tipo = 'Selecciona el tipo de caso.'
-    if (!form.area) nextErrors.area = 'Selecciona un área.'
     if (!form.categoria_id) nextErrors.categoria_id = 'Selecciona una categoría.'
     if (!form.titulo.trim()) nextErrors.titulo = 'El título es obligatorio.'
     if (!form.usuario_id) nextErrors.usuario_id = 'No fue posible identificar el solicitante actual.'
@@ -79,8 +81,8 @@ export default function RegistroPage() {
     try {
       const caso = await agregarCaso({ ...form, titulo: form.titulo.trim(), descripcion: form.descripcion.trim() })
       navigate(`/bandeja?creado=${caso.id}`)
-    } catch (error) {
-      setErrors({ general: error instanceof Error ? error.message : 'No fue posible registrar el caso.' })
+    } catch (err) {
+      setErrors({ general: err instanceof Error ? err.message : 'No fue posible registrar el caso' })
     }
   }
 
@@ -96,7 +98,6 @@ export default function RegistroPage() {
         ? <div className="form-status"><span>Solicitante</span><strong>{usuarioActual.nombre}</strong><small>Se asigna automáticamente desde tu sesión.</small></div>
         : <label>Solicitante<select value={form.usuario_id} onChange={(event) => update('usuario_id', Number(event.target.value))}>{usuarios.filter((usuario) => usuario.rol === 'solicitante').map((usuario) => <option key={usuario.id} value={usuario.id}>{usuario.nombre}</option>)}</select>{errors.usuario_id && <small className="field-error">{errors.usuario_id}</small>}</label>}
       <div className="form-status"><span>Estado inicial</span><strong>Pendiente</strong></div>
-      {errors.general && <small className="field-error full-field">{errors.general}</small>}
       <div className="form-actions full-field"><button className="button-secondary" type="button" onClick={() => navigate('/bandeja')}>Cancelar</button><button className="button-primary" type="submit">Guardar caso</button></div>
     </form>
   </section>

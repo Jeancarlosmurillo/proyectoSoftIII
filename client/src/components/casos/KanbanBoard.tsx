@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { useCasos } from '../../context/CasosContext'
 import { useAuth } from '../../context/AuthContext'
 import type { EstadoCaso, TipoCaso } from '../../types'
@@ -14,27 +14,34 @@ const columns: { id: EstadoCaso; description: string; limit: number | null }[] =
 ]
 
 export default function KanbanBoard() {
+  const { casos, cargando, asignarCaso, actualizarEstadoCaso } = useCasos()
   const { casos, cargando, errorCarga, tomarCaso } = useCasos()
   const { usuarioActual } = useAuth()
   const [searchParams] = useSearchParams()
   const [query, setQuery] = useState('')
   const [tipo, setTipo] = useState<'Todos' | TipoCaso>('Todos')
+
   const visibles = useMemo(() => casos.filter((caso) => {
     const matchesType = tipo === 'Todos' || caso.tipo === tipo
     const text = `${caso.id} ${caso.titulo} ${caso.usuario_id}`.toLowerCase()
     return matchesType && text.includes(query.toLowerCase())
   }), [casos, query, tipo])
+
   const disponibles = useMemo(() => casos
     .filter((caso) => caso.estado === 'Pendiente' || caso.agente_id === null)
     .sort((a, b) => {
-      const priorityOrder = { 'P1 urgente': 1, 'P2 normal': 2, 'P3 baja': 3 }
+      const priorityOrder = { 'P1': 1, 'P2': 2, 'P3': 3 }
       return priorityOrder[a.prioridad] - priorityOrder[b.prioridad]
         || new Date(b.fecha_creacion).getTime() - new Date(a.fecha_creacion).getTime()
     }), [casos])
 
+  if (usuarioActual.rol === 'solicitante' || usuarioActual.rol === 'validador') {
+    return <section className="access-page"><h2>Bandeja de soporte</h2><p>Esta vista es exclusiva para agentes de soporte y administradores.</p><Link className="button-primary" to="/mis-casos">Ir a Mis Casos</Link></section>
   if (usuarioActual.rol !== 'agente' && usuarioActual.rol !== 'validador' && usuarioActual.rol !== 'administrador') {
     return <section className="access-page"><h2>Bandeja operativa</h2><p>Esta vista está reservada para el equipo que gestiona y supervisa los casos. Revisa la sección asignada a tu rol.</p><a className="button-primary" href="/mis-casos">Ir a mi sección</a></section>
   }
+
+  if (cargando) return <section className="access-page"><h2>Cargando casos...</h2></section>
   if (cargando) return <section className="empty-page"><h2>Cargando casos...</h2><p>Consultando la API de CampusHelp.</p></section>
   if (errorCarga) return <section className="empty-page"><h2>No fue posible cargar los casos</h2><p>{errorCarga}</p><button className="button-primary" type="button" onClick={() => window.location.reload()}>Reintentar</button></section>
 
@@ -42,6 +49,8 @@ export default function KanbanBoard() {
     <>
       {searchParams.get('creado') && <div className="success-banner" role="status">Caso CH-{searchParams.get('creado')} registrado correctamente y agregado a Pendiente.</div>}
       <section className="page-intro">
+        <div><div className="breadcrumb">Operación <span>/</span> Tablero Kanban</div><h2>Flujo de atención</h2><p>Visualiza y gestiona los casos activos de CampusHelp.</p></div>
+        <div className="board-summary"><strong>{visibles.length}</strong><span>casos visibles</span></div>
         <div><div className="breadcrumb">Operación <span>/</span> Tablero Kanban</div><h2>{usuarioActual.rol === 'validador' ? 'Supervisión del flujo' : 'Flujo de atención'}</h2><p>{usuarioActual.rol === 'validador' ? 'Consulta el estado general y ubica los casos que requieren validación.' : 'Visualiza y gestiona los casos activos de CampusHelp.'}</p></div>
         <div className="board-summary"><strong>{visibles.length}</strong><span>casos visibles</span><strong className="summary-expedite">{casos.filter((caso) => caso.expedite).length}</strong><span>expedite activo</span></div>
       </section>
@@ -51,8 +60,8 @@ export default function KanbanBoard() {
         {disponibles.length > 0 ? <div className="queue-list">{disponibles.map((caso) => <article className="queue-item" key={caso.id}><div className="queue-item-main"><span className="case-table-id">CH-{caso.id}</span><strong>{caso.titulo}</strong><span>{caso.tipo} · {caso.area}</span></div><span className={caso.prioridad === 'P1 urgente' ? 'queue-priority queue-priority--urgent' : 'queue-priority'}>{caso.prioridad}</span><span className="queue-date">{new Date(caso.fecha_creacion).toLocaleDateString('es-CO')}</span>{usuarioActual.rol === 'agente' && caso.agente_id === null && <button className="take-button" type="button" onClick={() => void tomarCaso(caso.id).catch((error) => window.alert(error instanceof Error ? error.message : 'No fue posible asignarte el caso'))}>Asignarme</button>}</article>)}</div> : <div className="queue-empty">No hay casos disponibles en este momento.</div>}
       </section>
       <div className="board-toolbar">
-        <div className="board-label"><span className="board-label__dot" /> Tablero de casos <span className="live-label">EN VIVO</span></div>
-        <div className="board-filters"><input aria-label="Buscar casos" placeholder="Buscar por ID, título o usuario..." value={query} onChange={(event) => setQuery(event.target.value)} /><select aria-label="Filtrar por tipo" value={tipo} onChange={(event) => setTipo(event.target.value as 'Todos' | TipoCaso)}><option>Todos</option><option>Incidente</option><option>Solicitud de servicio</option></select></div>
+        <div className="board-label"><span className="board-label__dot" /> Tablero de casos</div>
+        <div className="board-filters"><input aria-label="Buscar casos" placeholder="Buscar por ID, título o usuario..." value={query} onChange={(event) => setQuery(event.target.value)} /><select aria-label="Filtrar por tipo" value={tipo} onChange={(event) => setTipo(event.target.value as 'Todos' | TipoCaso)}><option>Todos</option><option>Incidente</option><option>Solicitud</option></select></div>
       </div>
       <div className="kanban-board">
         {columns.map((column) => {

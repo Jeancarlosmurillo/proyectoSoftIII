@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { actualizarCaso, asignarCaso as asignarCasoApi, cambiarEstado, crearCaso, desasignarCaso as desasignarCasoApi, eliminarCaso as eliminarCasoApi, listarCasos, obtenerHistorial as obtenerHistorialApi, registrarAnalisis, registrarAtencion } from '../services/casosService'
 import { useAuth } from './AuthContext'
-import type { CambiosCaso, Caso, EstadoCaso, EventoHistorial, NuevoCaso } from '../types'
+import type { Caso, EstadoCaso, EventoHistorial, NuevoCaso } from '../types'
 
 interface CasosContextValue {
   casos: Caso[]
@@ -22,11 +22,33 @@ interface CasosContextValue {
 
 const CasosContext = createContext<CasosContextValue | undefined>(undefined)
 
+const TRANSICIONES_VALIDAS: Record<EstadoCaso, EstadoCaso[]> = {
+  'Pendiente': ['En análisis'],
+  'En análisis': ['En atención'],
+  'En atención': ['En validación'],
+  'En validación': ['Cerrada', 'En atención'],
+  'Cerrada': [],
+}
+
 export function CasosProvider({ children }: { children: ReactNode }) {
   const [casos, setCasos] = useState<Caso[]>([])
   const [cargando, setCargando] = useState(true)
   const [errorCarga, setErrorCarga] = useState('')
   const { usuarioActual } = useAuth()
+
+  const obtenerCasos = async () => {
+    setCargando(true)
+    setError(null)
+    try {
+      const data = await listarCasos()
+      setCasos(data)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'No fue posible cargar los casos')
+    } finally {
+      setCargando(false)
+    }
+  }
+
   useEffect(() => {
     listarCasos()
       .then(setCasos)
@@ -37,24 +59,34 @@ export function CasosProvider({ children }: { children: ReactNode }) {
       .finally(() => setCargando(false))
   }, [])
 
-  const exigirAdministrador = () => {
-    if (usuarioActual.rol !== 'administrador') throw new Error('Solo un administrador puede realizar esta acción')
+  const agregarCaso = async (nuevoCaso: NuevoCaso): Promise<Caso> => {
+    const caso = await crearCaso(nuevoCaso)
+    setCasos((actuales) => [caso, ...actuales])
+    return caso
   }
 
-  const puedeActualizar = (caso: Caso, nuevoEstado: EstadoCaso) => {
-    if (usuarioActual.rol === 'administrador') return true
-    if (usuarioActual.rol === 'agente') {
-      return (
-        caso.agente_id === usuarioActual.id &&
-        (
-          (caso.estado === 'Pendiente' && nuevoEstado === 'En análisis')
-          || (caso.estado === 'En análisis' && nuevoEstado === 'En atención')
-          || (caso.estado === 'En atención' && nuevoEstado === 'En validación')
-          || (caso.estado === 'En validación' && nuevoEstado === 'Cerrada')
-        )
-      )
-    }
-    return false
+  const asignarCasoFn = async (id: number, agenteId: number) => {
+    const casoActualizado = await asignarCaso(id, agenteId)
+    setCasos((actuales) => actuales.map((c) => (c.id === id ? casoActualizado : c)))
+  }
+
+  const actualizarEstadoCasoFn = async (id: number, nuevoEstado: EstadoCaso) => {
+    const casoActualizado = await cambiarEstadoCaso(id, nuevoEstado, usuarioActual.id)
+    setCasos((actuales) => actuales.map((c) => (c.id === id ? casoActualizado : c)))
+  }
+
+  const registrarAtencionFn = async (id: number, diagnostico: string, solucion: string) => {
+    await registrarAtencion(id, diagnostico, solucion, usuarioActual.id)
+    await obtenerCasos()
+  }
+
+  const validarCasoFn = async (id: number, accion: 'aprobar' | 'devolver', comentario?: string) => {
+    const casoActualizado = await validarCaso(id, accion, usuarioActual.id, comentario)
+    setCasos((actuales) => actuales.map((c) => (c.id === id ? casoActualizado : c)))
+  }
+
+  const obtenerHistorialFn = async (casoId: number): Promise<EventoHistorial[]> => {
+    return obtenerHistorial(casoId)
   }
 
   const estadosPermitidos = (caso: Caso): EstadoCaso[] => {

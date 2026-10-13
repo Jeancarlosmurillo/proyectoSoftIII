@@ -3,7 +3,9 @@ import type { RolUsuario, UsuarioSesion } from '../types'
 
 export const usuariosPrueba: UsuarioSesion[] = [
   { id: 1, nombre: 'Ana Solicitante', rol: 'solicitante', tipo: 'Estudiante' },
+  { id: 1, nombre: 'Ana Solicitante', rol: 'solicitante', tipo: 'Estudiante' },
   { id: 2, nombre: 'Carlos Agente', rol: 'agente' },
+  { id: 3, nombre: 'Maria Validador', rol: 'validador' },
   { id: 4, nombre: 'Pedro Administrador', rol: 'administrador' },
 ]
 
@@ -46,6 +48,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         throw new Error('El usuario de prueba seleccionado no existe')
       }
       setUsuarioId(id)
+      localStorage.setItem('campushelp_usuario_id', String(id))
     },
     tieneRol: (...roles: RolUsuario[]) =>
       roles.includes(usuarioActual.rol) || usuarioActual.rol === 'administrador',

@@ -1,6 +1,7 @@
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import { useCasos } from '../context/CasosContext'
+import { listarCasos } from '../services/casosService'
 import type { Caso } from '../types'
 
 function formatDate(value: string) {
@@ -9,10 +10,6 @@ function formatDate(value: string) {
     month: 'short',
     year: 'numeric',
   })
-}
-
-function priorityClass(priority: Caso['prioridad']) {
-  return `priority priority--${priority.slice(0, 2).toLowerCase()}`
 }
 
 export default function MisCasosPage() {
@@ -64,7 +61,6 @@ export default function MisCasosPage() {
                 <th>ID</th>
                 <th>Título</th>
                 <th>Tipo</th>
-                <th>Área</th>
                 <th>Estado</th>
                 <th>Prioridad</th>
                 <th>Creado</th>
@@ -76,9 +72,8 @@ export default function MisCasosPage() {
                   <td><Link className="case-table-id" to={`/caso/${caso.id}`}>CH-{caso.id}</Link></td>
                   <td><Link className="case-table-title" to={`/caso/${caso.id}`}>{caso.titulo}</Link></td>
                   <td><span className={`case-type-pill case-type-pill--${caso.tipo === 'Incidente' ? 'incident' : 'request'}`}>{caso.tipo}</span></td>
-                  <td>{caso.area}</td>
                   <td><span className={`state-pill state-pill--${caso.estado.toLowerCase().replace(/ /g, '-').replace(/ó/g, 'o')}`}>{caso.estado}</span></td>
-                  <td><span className={priorityClass(caso.prioridad)}>{caso.prioridad}</span></td>
+                  <td><span className={`priority priority--${caso.prioridad.toLowerCase()}`}>{caso.prioridad}</span></td>
                   <td>{formatDate(caso.fecha_creacion)}</td>
                 </tr>
               ))}

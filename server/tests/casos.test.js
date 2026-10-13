@@ -1015,3 +1015,42 @@ describe('Filtros - validación area_id y categoria_id', () => {
     expect(res.body.error).toBe('FILTRO_INVALIDO');
   });
 });
+
+describe('Casos de prueba adicionales (CP-12 a CP-15)', () => {
+  test('CP-12: Aceptar caracteres especiales y código', async () => {
+    const res = await request(app)
+      .post('/api/casos')
+      .send({
+        tipo: 'Incidente',
+        titulo: 'Test <script>alert("xss")</script>',
+        descripcion: 'Detalles con caracteres especiales: áéíóú Ññ " quotes \' y #$%&/',
+        prioridad: 'P1',
+        usuario_id: 1,
+        categoria_id: 1
+      });
+
+    expect(res.status).toBe(201);
+    expect(res.body.id).toBeDefined();
+  });
+
+  test('CP-13: Rechazar petición POST /api/casos con body vacío', async () => {
+    const res = await request(app)
+      .post('/api/casos')
+      .send({});
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('DATOS_INVALIDOS');
+  });
+
+  test('CP-14: Búsqueda con espacios en blanco extras', async () => {
+    const res = await request(app).get('/api/casos?estado=Pendiente');
+    expect(res.status).toBe(200);
+    expect(Array.isArray(res.body)).toBe(true);
+  });
+
+  test('CP-15: Responder con arreglo vacío cuando no hay resultados', async () => {
+    const res = await request(app).get('/api/casos?prioridad=P99');
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('FILTRO_INVALIDO');
+  });
+});

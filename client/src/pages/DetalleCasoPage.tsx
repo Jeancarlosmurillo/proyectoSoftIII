@@ -1,5 +1,6 @@
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { useCasos } from '../context/CasosContext'
 import { useAuth } from '../context/AuthContext'
 import { validarCaso } from '../services/casosService'
@@ -31,16 +32,17 @@ export default function DetalleCasoPage() {
       await actualizarEstadoCaso(caso.id, nuevoEstado)
     } catch (exception) {
       setError(exception instanceof Error ? exception.message : 'No fue posible actualizar el caso')
+    } finally {
+      setCargando(false)
     }
   }
+
   const puedeGestionar = usuarioActual.rol === 'agente' || usuarioActual.rol === 'administrador'
   const estadosPermitidos = obtenerEstadosPermitidos(caso.id)
   const agentes = usuarios.filter((usuario) => usuario.rol === 'agente')
   const guardarEdicion = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    const data = new FormData(event.currentTarget)
     try {
-      setGuardando(true)
       setError('')
       await editarCaso(caso.id, {
         tipo: data.get('tipo') as TipoCaso,
@@ -53,9 +55,9 @@ export default function DetalleCasoPage() {
       })
       setEditando(false)
     } catch (exception) {
-      setError(exception instanceof Error ? exception.message : 'No fue posible editar el caso')
+      setError(exception instanceof Error ? exception.message : 'No fue posible registrar la atención')
     } finally {
-      setGuardando(false)
+      setCargando(false)
     }
   }
   const borrarCaso = async () => {

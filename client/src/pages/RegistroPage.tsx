@@ -29,7 +29,7 @@ export default function RegistroPage() {
     update('area', area)
     update('categoria_id', categoriasPorArea[area][0].id)
   }
-  const submit = (event: FormEvent) => {
+  const submit = async (event: FormEvent) => {
     event.preventDefault()
     const nextErrors: Record<string, string> = {}
     if (!form.tipo) nextErrors.tipo = 'Selecciona el tipo de caso.'
@@ -42,8 +42,12 @@ export default function RegistroPage() {
       setErrors(nextErrors)
       return
     }
-    const caso = agregarCaso({ ...form, titulo: form.titulo.trim(), descripcion: form.descripcion.trim() })
-    navigate(`/bandeja?creado=${caso.id}`)
+    try {
+      const caso = await agregarCaso({ ...form, titulo: form.titulo.trim(), descripcion: form.descripcion.trim() })
+      navigate(`/bandeja?creado=${caso.id}`)
+    } catch (error) {
+      setErrors({ general: error instanceof Error ? error.message : 'No fue posible registrar el caso.' })
+    }
   }
 
   return <section className="form-page"><div className="breadcrumb">Operación <span>/</span> Registrar caso</div><h2>Registrar nuevo caso</h2><p className="form-lead">Crea un incidente o una solicitud para incorporarla a la bandeja.</p>
@@ -56,6 +60,7 @@ export default function RegistroPage() {
       <label className="full-field">Descripción<textarea value={form.descripcion} onChange={(event) => update('descripcion', event.target.value)} placeholder="Incluye el contexto necesario para atenderlo" />{errors.descripcion && <small className="field-error">{errors.descripcion}</small>}<small className="field-hint">{form.descripcion.trim().length}/10 caracteres mínimos</small></label>
       <label>Solicitante<select value={form.usuario_id} onChange={(event) => update('usuario_id', Number(event.target.value))}>{solicitantes.map((usuario) => <option key={usuario.id} value={usuario.id}>{usuario.nombre}</option>)}</select>{errors.usuario_id && <small className="field-error">{errors.usuario_id}</small>}</label>
       <div className="form-status"><span>Estado inicial</span><strong>Pendiente</strong></div>
+      {errors.general && <small className="field-error full-field">{errors.general}</small>}
       <div className="form-actions full-field"><button className="button-secondary" type="button" onClick={() => navigate('/bandeja')}>Cancelar</button><button className="button-primary" type="submit">Guardar caso</button></div>
     </form>
   </section>

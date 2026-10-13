@@ -1,12 +1,12 @@
-import { createContext, useContext, useMemo, useState, type ReactNode } from 'react'
-import { casosMock } from '../data/casos.mock'
+import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { crearCaso, listarCasos } from '../services/casosService'
 import { useAuth } from './AuthContext'
 import type { CambiosCaso, Caso, EstadoCaso, EventoHistorial, NuevoCaso } from '../types'
 
 interface CasosContextValue {
   casos: Caso[]
   obtenerCasos: () => Caso[]
-  agregarCaso: (nuevoCaso: NuevoCaso) => Caso
+  agregarCaso: (nuevoCaso: NuevoCaso) => Promise<Caso>
   editarCaso: (id: number, cambios: CambiosCaso) => void
   eliminarCaso: (id: number) => void
   asignarCaso: (id: number, agenteId: number | null) => void
@@ -19,9 +19,15 @@ interface CasosContextValue {
 const CasosContext = createContext<CasosContextValue | undefined>(undefined)
 
 export function CasosProvider({ children }: { children: ReactNode }) {
-  const [casos, setCasos] = useState<Caso[]>(casosMock)
+  const [casos, setCasos] = useState<Caso[]>([])
   const [historial, setHistorial] = useState<EventoHistorial[]>([])
   const { usuarioActual } = useAuth()
+  useEffect(() => {
+    listarCasos()
+      .then(setCasos)
+      .catch(() => setCasos([]))
+  }, [])
+
   const exigirAdministrador = () => {
     if (usuarioActual.rol !== 'administrador') throw new Error('Solo un administrador puede realizar esta acción')
   }
@@ -60,16 +66,8 @@ export function CasosProvider({ children }: { children: ReactNode }) {
   const value = useMemo<CasosContextValue>(() => ({
     casos,
     obtenerCasos: () => casos,
-    agregarCaso: (nuevoCaso) => {
-      const caso: Caso = {
-        ...nuevoCaso,
-        id: Math.max(0, ...casos.map((item) => item.id)) + 1,
-        estado: 'Pendiente',
-        agente_id: null,
-        fecha_creacion: new Date().toISOString(),
-        fecha_asignacion: null,
-        fecha_cierre: null,
-      }
+    agregarCaso: async (nuevoCaso) => {
+      const caso = await crearCaso(nuevoCaso)
       setCasos((actuales) => [caso, ...actuales])
       return caso
     },

@@ -14,7 +14,7 @@ const columns: { id: EstadoCaso; description: string; limit: number | null }[] =
 ]
 
 export default function KanbanBoard() {
-  const { casos, tomarCaso } = useCasos()
+  const { casos, cargando, errorCarga, tomarCaso } = useCasos()
   const { usuarioActual } = useAuth()
   const [searchParams] = useSearchParams()
   const [query, setQuery] = useState('')
@@ -32,21 +32,23 @@ export default function KanbanBoard() {
         || new Date(b.fecha_creacion).getTime() - new Date(a.fecha_creacion).getTime()
     }), [casos])
 
-  if (usuarioActual.rol === 'solicitante') {
-    return <section className="access-page"><h2>Bandeja de soporte</h2><p>Esta vista es exclusiva para agentes de soporte y administradores.</p><a className="button-primary" href="/mis-casos">Ir a Mis Casos</a></section>
+  if (usuarioActual.rol !== 'agente' && usuarioActual.rol !== 'validador' && usuarioActual.rol !== 'administrador') {
+    return <section className="access-page"><h2>Bandeja operativa</h2><p>Esta vista está reservada para el equipo que gestiona y supervisa los casos. Revisa la sección asignada a tu rol.</p><a className="button-primary" href="/mis-casos">Ir a mi sección</a></section>
   }
+  if (cargando) return <section className="empty-page"><h2>Cargando casos...</h2><p>Consultando la API de CampusHelp.</p></section>
+  if (errorCarga) return <section className="empty-page"><h2>No fue posible cargar los casos</h2><p>{errorCarga}</p><button className="button-primary" type="button" onClick={() => window.location.reload()}>Reintentar</button></section>
 
   return (
     <>
       {searchParams.get('creado') && <div className="success-banner" role="status">Caso CH-{searchParams.get('creado')} registrado correctamente y agregado a Pendiente.</div>}
       <section className="page-intro">
-        <div><div className="breadcrumb">Operación <span>/</span> Tablero Kanban</div><h2>Flujo de atención</h2><p>Visualiza y gestiona los casos activos de CampusHelp.</p></div>
+        <div><div className="breadcrumb">Operación <span>/</span> Tablero Kanban</div><h2>{usuarioActual.rol === 'validador' ? 'Supervisión del flujo' : 'Flujo de atención'}</h2><p>{usuarioActual.rol === 'validador' ? 'Consulta el estado general y ubica los casos que requieren validación.' : 'Visualiza y gestiona los casos activos de CampusHelp.'}</p></div>
         <div className="board-summary"><strong>{visibles.length}</strong><span>casos visibles</span><strong className="summary-expedite">{casos.filter((caso) => caso.expedite).length}</strong><span>expedite activo</span></div>
       </section>
       <aside className="scrum-alert"><span className="scrum-alert__icon">i</span><div><strong>Principio operativo ScrumBan</strong><p>Si una columna alcanza su WIP, no se debe iniciar una nueva tarea, sino ayudar a terminar o desbloquear el trabajo existente.</p></div></aside>
       <section className="queue-section">
-        <div className="queue-heading"><div><h3>Bandeja disponible</h3><p>Casos pendientes o sin agente asignado, ordenados por prioridad y fecha.</p></div><span className="case-count">{disponibles.length} disponibles</span></div>
-        {disponibles.length > 0 ? <div className="queue-list">{disponibles.map((caso) => <article className="queue-item" key={caso.id}><div className="queue-item-main"><span className="case-table-id">CH-{caso.id}</span><strong>{caso.titulo}</strong><span>{caso.tipo} · {caso.area}</span></div><span className={caso.prioridad === 'P1 urgente' ? 'queue-priority queue-priority--urgent' : 'queue-priority'}>{caso.prioridad}</span><span className="queue-date">{new Date(caso.fecha_creacion).toLocaleDateString('es-CO')}</span>{usuarioActual.rol === 'agente' && caso.agente_id === null && <button className="take-button" type="button" onClick={() => { try { tomarCaso(caso.id) } catch (error) { window.alert(error instanceof Error ? error.message : 'No fue posible asignarte el caso') } }}>Asignarme</button>}</article>)}</div> : <div className="queue-empty">No hay casos disponibles en este momento.</div>}
+        <div className="queue-heading"><div><h3>{usuarioActual.rol === 'validador' ? 'Casos sin responsable' : 'Bandeja disponible'}</h3><p>{usuarioActual.rol === 'validador' ? 'Casos que aún no tienen agente asignado y requieren seguimiento operativo.' : 'Casos pendientes o sin agente asignado, ordenados por prioridad y fecha.'}</p></div><span className="case-count">{disponibles.length} {usuarioActual.rol === 'validador' ? 'sin responsable' : 'disponibles'}</span></div>
+        {disponibles.length > 0 ? <div className="queue-list">{disponibles.map((caso) => <article className="queue-item" key={caso.id}><div className="queue-item-main"><span className="case-table-id">CH-{caso.id}</span><strong>{caso.titulo}</strong><span>{caso.tipo} · {caso.area}</span></div><span className={caso.prioridad === 'P1 urgente' ? 'queue-priority queue-priority--urgent' : 'queue-priority'}>{caso.prioridad}</span><span className="queue-date">{new Date(caso.fecha_creacion).toLocaleDateString('es-CO')}</span>{usuarioActual.rol === 'agente' && caso.agente_id === null && <button className="take-button" type="button" onClick={() => void tomarCaso(caso.id).catch((error) => window.alert(error instanceof Error ? error.message : 'No fue posible asignarte el caso'))}>Asignarme</button>}</article>)}</div> : <div className="queue-empty">No hay casos disponibles en este momento.</div>}
       </section>
       <div className="board-toolbar">
         <div className="board-label"><span className="board-label__dot" /> Tablero de casos <span className="live-label">EN VIVO</span></div>

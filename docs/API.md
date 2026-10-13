@@ -263,9 +263,30 @@ Un agente se asigna un caso. Registra `agente_id`, `fecha_asignacion` y crea eve
 
 ---
 
+### POST /api/casos/{id}/analisis
+
+El agente asignado documenta el diagnóstico inicial y el plan de abordaje. El caso debe estar en "En análisis". Al guardar, pasa automáticamente a "En atención" y se crea un evento detallado en el historial.
+
+**Cuerpo:**
+| Campo | Tipo | Requerido |
+|-------|------|-----------|
+| `diagnostico` | string | Sí, mínimo 10 caracteres |
+| `abordaje` | string | Sí, mínimo 10 caracteres |
+| `usuario_id` | integer | Sí (debe ser el agente asignado) |
+
+**Respuesta 200:** caso actualizado
+
+**Errores:**
+- **400** `DATOS_INVALIDOS` — campos faltantes o demasiado cortos
+- **403** `SIN_PERMISO` — solo el agente asignado puede registrar el análisis
+- **404** `NO_ENCONTRADO` — caso inexistente
+- **409** `LIMITE_WIP` — límite de "En atención" alcanzado
+
+---
+
 ### POST /api/casos/{id}/atencion
 
-El agente asignado registra diagnóstico y solución. El caso debe estar en estado "En atención".
+El agente asignado registra diagnóstico y solución. El caso debe estar en estado "En atención". Al guardar, el caso pasa automáticamente a "En validación".
 
 **Cuerpo:**
 | Campo | Tipo | Requerido |
@@ -274,7 +295,7 @@ El agente asignado registra diagnóstico y solución. El caso debe estar en esta
 | `solucion` | string | Sí |
 | `usuario_id` | integer | Sí (debe ser el agente asignado) |
 
-**Respuesta 201:**
+**Respuesta 201:** caso actualizado
 ```json
 {
   "id": 1,
@@ -378,5 +399,17 @@ Obtiene indicadores del sistema calculados con agregación en BD.
   "tiempo_promedio_asignacion_horas": 2.3
 }
 ```
+
+### PATCH /api/casos/{id}
+
+Edita los datos de un caso. Requiere `actor_id` de un usuario con rol `administrador`; los campos del caso son opcionales.
+
+### DELETE /api/casos/{id}
+
+Elimina un caso y sus registros asociados. Requiere `usuario_id` de un administrador.
+
+### POST /api/casos/{id}/desasignar
+
+Retira el agente asignado. Requiere `usuario_id` de un administrador. Si el caso estaba en `En análisis`, vuelve a `Pendiente` y registra el evento en el historial.
 
 **Nota sobre `tiempo_promedio_atencion_horas`:** cuando no hay casos cerrados, este campo retorna `null` (no 0). El frontend debe manejar este caso.

@@ -1,7 +1,11 @@
 import { Link } from 'react-router-dom'
+import { useAuth } from '../../context/AuthContext'
 import type { Caso } from '../../types'
 
 export default function CaseCard({ caso }: { caso: Caso }) {
+  const { usuarios } = useAuth()
+  const solicitante = usuarios.find((usuario) => usuario.id === caso.usuario_id)
+  const agente = caso.agente_id === null ? null : usuarios.find((usuario) => usuario.id === caso.agente_id)
   return (
     <Link className={`case-card case-card--${caso.tipo === 'Incidente' ? 'incidente' : 'solicitud'}`} to={`/caso/${caso.id}`}>
       <div className="case-card__topline">
@@ -14,10 +18,11 @@ export default function CaseCard({ caso }: { caso: Caso }) {
         <span className="case-card__area">{caso.area}</span>
       </div>
       <div className="case-card__footer">
-        <span className="case-card__user"><span className="avatar">{String(caso.usuario_id).slice(-2)}</span> Usuario {caso.usuario_id}</span>
+        <span className="case-card__user"><span className="avatar">{(solicitante?.nombre ?? `U${caso.usuario_id}`).slice(0, 2).toUpperCase()}</span>{solicitante?.nombre ?? `Usuario ${caso.usuario_id}`}</span>
         <span className="case-card__status">{caso.estado}</span>
         {caso.expedite && <span className="expedite">⚡ Expedite</span>}
       </div>
+      <span className="case-card__assignee">{agente ? `Atiende: ${agente.nombre}` : 'Sin agente asignado'}</span>
     </Link>
   )
 }

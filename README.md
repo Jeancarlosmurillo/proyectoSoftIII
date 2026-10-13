@@ -65,6 +65,12 @@ docker-compose ps
 | POST | `/api/casos` | Crear incidente/solicitud |
 | GET | `/api/casos` | Listar casos (con filtros) |
 | GET | `/api/casos/:id` | Obtener caso por ID |
+| PATCH | `/api/casos/:id` | Editar caso (administrador) |
+| DELETE | `/api/casos/:id` | Eliminar caso (administrador) |
+| POST | `/api/casos/:id/asignar` | Asignar caso a un agente |
+| POST | `/api/casos/:id/desasignar` | Retirar agente asignado (administrador) |
+| POST | `/api/casos/:id/atencion` | Registrar diagnóstico y solución |
+| POST | `/api/casos/:id/validacion` | Aprobar o devolver solución |
 | PATCH | `/api/casos/:id/estado` | Cambiar estado |
 | GET | `/api/areas` | Listar áreas |
 | GET | `/api/categorias` | Listar categorías |
@@ -81,6 +87,25 @@ cp .env.example .env
 # Editar .env con tus credenciales
 npm run dev
 ```
+
+Antes de iniciar el servidor en una base vacía, ejecuta el esquema y los datos de demostración:
+
+```bash
+psql "$DATABASE_URL" -f ../database/schema.sql
+psql "$DATABASE_URL" -f ../database/seed.sql
+```
+
+El archivo `server/.env` debe apuntar a la instancia local:
+
+```env
+DATABASE_URL=postgresql://campushelp_user:tu_password@localhost:5432/campushelp
+PORT=3001
+```
+
+Para usar la configuración reproducible del proyecto, puedes levantar PostgreSQL
+con Docker Desktop mediante `docker compose up -d postgres`. Si Docker Desktop no
+está disponible, instala PostgreSQL localmente y crea el usuario y la base de
+datos indicados en `server/README.md`.
 
 ### Frontend
 
@@ -102,6 +127,16 @@ npm test
 ```
 Pendiente → En análisis → En atención → En validación → Cerrada
 ```
+
+## Roles para la demostración
+
+- **Solicitante:** registra solicitudes y consulta sus propios casos.
+- **Agente:** toma casos, registra la atención y los envía a validación.
+- **Validador:** revisa la solución, la aprueba o la devuelve.
+- **Administrador:** supervisa el tablero, gestiona asignaciones y consulta indicadores.
+
+El selector de usuario del encabezado simula la autenticación para la demostración
+académica; en producción debe reemplazarse por login y control de sesión real.
 
 ## Equipo Sprint 1
 

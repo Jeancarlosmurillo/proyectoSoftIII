@@ -1,31 +1,40 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
-import { crearCaso, listarCasos } from '../services/casosService'
+import { actualizarCaso, asignarCaso as asignarCasoApi, cambiarEstado, crearCaso, desasignarCaso as desasignarCasoApi, eliminarCaso as eliminarCasoApi, listarCasos, obtenerHistorial as obtenerHistorialApi, registrarAnalisis, registrarAtencion } from '../services/casosService'
 import { useAuth } from './AuthContext'
 import type { CambiosCaso, Caso, EstadoCaso, EventoHistorial, NuevoCaso } from '../types'
 
 interface CasosContextValue {
   casos: Caso[]
+  cargando: boolean
+  errorCarga: string
   obtenerCasos: () => Caso[]
   agregarCaso: (nuevoCaso: NuevoCaso) => Promise<Caso>
-  editarCaso: (id: number, cambios: CambiosCaso) => void
-  eliminarCaso: (id: number) => void
-  asignarCaso: (id: number, agenteId: number | null) => void
-  tomarCaso: (id: number) => void
-  obtenerHistorial: (casoId: number) => EventoHistorial[]
+  editarCaso: (id: number, cambios: CambiosCaso) => Promise<void>
+  eliminarCaso: (id: number) => Promise<void>
+  asignarCaso: (id: number, agenteId: number | null) => Promise<void>
+  tomarCaso: (id: number) => Promise<void>
+  obtenerHistorial: (casoId: number) => Promise<EventoHistorial[]>
   obtenerEstadosPermitidos: (id: number) => EstadoCaso[]
-  actualizarEstadoCaso: (id: number, nuevoEstado: EstadoCaso) => void
+  actualizarEstadoCaso: (id: number, nuevoEstado: EstadoCaso) => Promise<void>
+  registrarAnalisis: (id: number, diagnostico: string, abordaje: string) => Promise<void>
+  registrarAtencion: (id: number, diagnostico: string, solucion: string) => Promise<void>
 }
 
 const CasosContext = createContext<CasosContextValue | undefined>(undefined)
 
 export function CasosProvider({ children }: { children: ReactNode }) {
   const [casos, setCasos] = useState<Caso[]>([])
-  const [historial, setHistorial] = useState<EventoHistorial[]>([])
+  const [cargando, setCargando] = useState(true)
+  const [errorCarga, setErrorCarga] = useState('')
   const { usuarioActual } = useAuth()
   useEffect(() => {
     listarCasos()
       .then(setCasos)
-      .catch(() => setCasos([]))
+      .catch((error) => {
+        setCasos([])
+        setErrorCarga(error instanceof Error ? error.message : 'No fue posible cargar los casos')
+      })
+      .finally(() => setCargando(false))
   }, [])
 
   const exigirAdministrador = () => {
@@ -49,9 +58,7 @@ export function CasosProvider({ children }: { children: ReactNode }) {
   }
 
   const estadosPermitidos = (caso: Caso): EstadoCaso[] => {
-    if (usuarioActual.rol === 'administrador') {
-      return ['Pendiente', 'En análisis', 'En atención', 'En validación', 'Cerrada']
-    }
+    if (usuarioActual.rol === 'administrador') return ['Pendiente', 'En análisis', 'En atención', 'En validación', 'Cerrada']
     if (usuarioActual.rol !== 'agente' || caso.agente_id !== usuarioActual.id) return [caso.estado]
     const siguiente: Partial<Record<EstadoCaso, EstadoCaso>> = {
       Pendiente: 'En análisis',
@@ -60,36 +67,40 @@ export function CasosProvider({ children }: { children: ReactNode }) {
       'En validación': 'Cerrada',
     }
     const estadoSiguiente = siguiente[caso.estado]
+    if (caso.estado === 'En análisis' || caso.estado === 'En atención') return [caso.estado]
     return estadoSiguiente ? [caso.estado, estadoSiguiente] : [caso.estado]
   }
 
   const value = useMemo<CasosContextValue>(() => ({
     casos,
+    cargando,
+    errorCarga,
     obtenerCasos: () => casos,
     agregarCaso: async (nuevoCaso) => {
       const caso = await crearCaso(nuevoCaso)
       setCasos((actuales) => [caso, ...actuales])
       return caso
     },
-    editarCaso: (id, cambios) => {
+    editarCaso: async (id, cambios) => {
       exigirAdministrador()
       if (!casos.some((caso) => caso.id === id)) throw new Error('El caso que intenta editar no existe')
-      setCasos((actuales) => actuales.map((caso) => caso.id === id ? { ...caso, ...cambios } : caso))
+      const actualizado = await actualizarCaso(id, cambios, usuarioActual.id)
+      setCasos((actuales) => actuales.map((caso) => caso.id === id ? actualizado : caso))
     },
-    eliminarCaso: (id) => {
+    eliminarCaso: async (id) => {
       exigirAdministrador()
       if (!casos.some((caso) => caso.id === id)) throw new Error('El caso que intenta eliminar no existe')
+      await eliminarCasoApi(id, usuarioActual.id)
       setCasos((actuales) => actuales.filter((caso) => caso.id !== id))
     },
-    asignarCaso: (id, agenteId) => {
+    asignarCaso: async (id, agenteId) => {
       exigirAdministrador()
-      setCasos((actuales) => actuales.map((caso) => caso.id === id ? {
-        ...caso,
-        agente_id: agenteId,
-        fecha_asignacion: agenteId ? (caso.fecha_asignacion ?? new Date().toISOString()) : null,
-      } : caso))
+      const actualizado = agenteId === null
+        ? await desasignarCasoApi(id, usuarioActual.id)
+        : await asignarCasoApi(id, agenteId)
+      setCasos((actuales) => actuales.map((caso) => caso.id === id ? actualizado : caso))
     },
-    tomarCaso: (id) => {
+    tomarCaso: async (id) => {
       if (usuarioActual.rol !== 'agente') throw new Error('Solo un agente puede tomar casos de la bandeja')
       const caso = casos.find((item) => item.id === id)
       if (!caso) throw new Error('El caso que intenta tomar no existe')
@@ -97,25 +108,10 @@ export function CasosProvider({ children }: { children: ReactNode }) {
       if (casos.filter((item) => item.estado === 'En análisis').length >= 3) {
         throw new Error('El límite WIP de En análisis fue alcanzado')
       }
-      const fechaAsignacion = new Date().toISOString()
-      setCasos((actuales) => actuales.map((item) => item.id === id ? {
-        ...item,
-        agente_id: usuarioActual.id,
-        estado: 'En análisis',
-        fecha_asignacion: fechaAsignacion,
-      } : item))
-      setHistorial((actuales) => [{
-        id: actuales.length + 1,
-        caso_id: id,
-        evento: 'Caso asignado',
-        estado_anterior: caso.estado,
-        estado_nuevo: 'En análisis',
-        usuario_id: usuarioActual.id,
-        fecha: fechaAsignacion,
-        detalle: `Caso asignado a ${usuarioActual.nombre}`,
-      }, ...actuales])
+      const actualizado = await asignarCasoApi(id, usuarioActual.id)
+      setCasos((actuales) => actuales.map((item) => item.id === id ? actualizado : item))
     },
-    actualizarEstadoCaso: (id, nuevoEstado) => {
+    actualizarEstadoCaso: async (id, nuevoEstado) => {
       const caso = casos.find((item) => item.id === id)
       if (!caso) throw new Error('El caso que intenta actualizar no existe')
       if (caso.estado === nuevoEstado) return
@@ -131,29 +127,23 @@ export function CasosProvider({ children }: { children: ReactNode }) {
       if (limitesWip[nuevoEstado] !== undefined && casosEnDestino >= limitesWip[nuevoEstado] && caso.estado !== nuevoEstado) {
         throw new Error(`No se puede avanzar el caso: el límite WIP de ${nuevoEstado} fue alcanzado`)
       }
-      const fecha = new Date().toISOString()
-      setCasos((actuales) => actuales.map((caso) => caso.id === id ? {
-        ...caso,
-        estado: nuevoEstado,
-        fecha_cierre: nuevoEstado === 'Cerrada' ? new Date().toISOString() : caso.fecha_cierre,
-      } : caso))
-      setHistorial((actuales) => [{
-        id: actuales.length + 1,
-        caso_id: id,
-        evento: 'Cambio de estado',
-        estado_anterior: caso.estado,
-        estado_nuevo: nuevoEstado,
-        usuario_id: usuarioActual.id,
-        fecha,
-        detalle: `${usuarioActual.nombre} cambió el estado de ${caso.estado} a ${nuevoEstado}`,
-      }, ...actuales])
+      const actualizado = await cambiarEstado(id, nuevoEstado, usuarioActual.id)
+      setCasos((actuales) => actuales.map((item) => item.id === id ? actualizado : item))
     },
-    obtenerHistorial: (casoId) => historial.filter((evento) => evento.caso_id === casoId),
+    registrarAnalisis: async (id, diagnostico, abordaje) => {
+      const actualizado = await registrarAnalisis(id, diagnostico, abordaje, usuarioActual.id)
+      setCasos((actuales) => actuales.map((item) => item.id === id ? actualizado : item))
+    },
+    registrarAtencion: async (id, diagnostico, solucion) => {
+      const actualizado = await registrarAtencion(id, diagnostico, solucion, usuarioActual.id)
+      setCasos((actuales) => actuales.map((item) => item.id === id ? actualizado : item))
+    },
+    obtenerHistorial: (casoId) => obtenerHistorialApi(casoId),
     obtenerEstadosPermitidos: (id) => {
       const caso = casos.find((item) => item.id === id)
       return caso ? estadosPermitidos(caso) : []
     },
-  }), [casos, historial, usuarioActual])
+  }), [casos, cargando, errorCarga, usuarioActual])
 
   return <CasosContext.Provider value={value}>{children}</CasosContext.Provider>
 }

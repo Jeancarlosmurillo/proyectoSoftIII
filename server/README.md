@@ -28,16 +28,17 @@ PORT=3001
 1. Crear el usuario y la base de datos en PostgreSQL:
 
 ```sql
-CREATE USER campushelp_user WITH PASSWORD 'Clave1234S';
+CREATE USER campushelp_user WITH PASSWORD 'tu_password_local';
 CREATE DATABASE campushelp OWNER campushelp_user;
 GRANT ALL PRIVILEGES ON DATABASE campushelp TO campushelp_user;
 GRANT ALL ON SCHEMA public TO campushelp_user;
 ALTER SCHEMA public OWNER TO campushelp_user;
 ```
 
-2. Aplicar las migraciones:
+2. Desde la raíz del proyecto, ejecutar el migrador:
 
 ```bash
+cd ..
 node database/migrator.js
 ```
 
@@ -46,6 +47,10 @@ node database/migrator.js
 ```bash
 psql -U campushelp_user -d campushelp -f database/seed.sql
 ```
+
+El seed crea una población demo distribuida entre tres solicitantes, tres agentes
+y dos validadores para que el tablero y los flujos por rol puedan demostrarse sin
+que todos los casos pertenezcan a la misma persona.
 
 ## Arrancar el servidor
 
@@ -101,8 +106,11 @@ server/
 | GET | /api/casos/:id | Detalle de caso con atención |
 | GET | /api/casos/:id/historial | Historial de eventos |
 | POST | /api/casos/:id/asignar | Asignar agente |
+| POST | /api/casos/:id/desasignar | Desasignar agente (solo admin) |
 | POST | /api/casos/:id/atencion | Registrar atención |
 | POST | /api/casos/:id/validacion | Validar caso |
+| PATCH | /api/casos/:id | Editar caso (solo admin) |
+| DELETE | /api/casos/:id | Eliminar caso (solo admin) |
 | PATCH | /api/casos/:id/estado | Cambiar estado |
 | GET | /api/indicadores | Indicadores del sistema |
 

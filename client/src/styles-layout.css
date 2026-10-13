@@ -60,6 +60,70 @@
 .history-empty { margin: 0; color: #8aa09f; font-size: 11px; }
 .queue-empty { padding: 18px; color: #8aa09f; background: #f8fcfb; font-size: 11px; text-align: center; }
 .access-page { max-width: 600px !important; margin-top: 70px !important; text-align: center; }
+.indicator-grid { display: grid; grid-template-columns: repeat(5, minmax(120px, 1fr)); gap: 12px; margin-top: 24px; }
+.indicator-card { display: grid; gap: 8px; padding: 18px; border: 1px solid #dce9e6; border-radius: 10px; background: #fff; }
+.indicator-card span { color: #6e8588; font-size: 11px; }
+.indicator-card strong { color: #176c61; font: 700 28px 'Space Grotesk', sans-serif; }
+.indicator-details { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.metric-row { display: flex; justify-content: space-between; gap: 16px; padding: 9px 0; border-bottom: 1px solid #edf2f0; }
+.metric-row strong { color: #176c61; }
+.role-guide { display: grid; grid-template-columns: minmax(260px, .9fr) 1.4fr; gap: 22px; align-items: center; margin: 22px 0; padding: 20px 22px; border: 1px solid #cfe7df; border-radius: 13px; background: linear-gradient(110deg, #eaf8f3, #f8fcfb); }
+.role-guide__eyebrow { color: #378d7d; font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
+.role-guide h3 { margin: 7px 0 5px; color: #174e4d; font: 700 17px 'Space Grotesk', sans-serif; }
+.role-guide p { margin: 0; color: #5e7a7b; font-size: 12px; line-height: 1.5; }
+.role-guide__steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.role-step { display: grid; gap: 8px; padding: 13px; border: 1px solid #d8ece6; border-radius: 9px; background: rgba(255,255,255,.75); }
+.role-step span { display: grid; place-items: center; width: 23px; height: 23px; border-radius: 50%; color: #fff; background: #278f80; font-size: 11px; font-weight: 700; }
+.role-step strong { color: #36575a; font-size: 11px; line-height: 1.3; }
+.workflow-form { display: grid; gap: 9px; margin-top: 18px; padding-top: 16px; border-top: 1px solid #e5efec; }
+.workflow-form h4 { margin: 0; color: #36575a; font: 700 14px 'Space Grotesk', sans-serif; }
+.workflow-form textarea { min-height: 78px; padding: 9px 11px; border: 1px solid #d7e5e1; border-radius: 7px; outline: 0; color: #36575a; font: inherit; font-size: 12px; resize: vertical; }
+.workflow-form textarea:focus { border-color: #54a59a; box-shadow: 0 0 0 3px rgba(52, 155, 143, .1); }
+.dashboard-page { padding-top: 42px !important; }
+.dashboard-hero { display: flex; align-items: flex-end; justify-content: space-between; gap: 28px; padding: 28px 30px; border: 1px solid #cfe7df; border-radius: 15px; background: linear-gradient(120deg, #e8f7f2, #f8fcfb 68%, #eef7fb); }
+.dashboard-eyebrow { color: #378d7d; font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
+.dashboard-hero h2 { margin: 8px 0 7px; color: #17353b; font: 700 30px 'Space Grotesk', sans-serif; }
+.dashboard-hero p { max-width: 610px; margin: 0; color: #5e7a7b; font-size: 13px; line-height: 1.55; }
+.dashboard-user { margin-top: 18px; color: #6e8588; font-size: 11px; }
+.dashboard-user strong { color: #176c61; }
+.dashboard-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 9px; }
+.dashboard-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 22px 0; }
+.dashboard-stat { display: grid; gap: 6px; padding: 17px; border: 1px solid #dce9e6; border-radius: 11px; background: #fff; }
+.dashboard-stat span { color: #6e8588; font-size: 11px; }
+.dashboard-stat strong { color: #176c61; font: 700 28px 'Space Grotesk', sans-serif; }
+.dashboard-stat small { color: #9aaeac; font-size: 10px; }
+.dashboard-stat--active strong { color: #3f7a9c; }
+.dashboard-stat--closed strong { color: #4a8b70; }
+.dashboard-stat--urgent strong { color: #b85c45; }
+.dashboard-columns { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 18px; }
+.dashboard-card { padding: 20px; border: 1px solid #dce9e6; border-radius: 12px; background: #fff; }
+.dashboard-card--accent { border-color: #d5e3f0; background: linear-gradient(135deg, #f4f9fc, #fff); }
+.dashboard-card-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 15px; margin-bottom: 15px; }
+.dashboard-card h3 { margin: 6px 0 0; color: #36575a; font: 700 16px 'Space Grotesk', sans-serif; }
+.dashboard-card-heading a { color: #217b6d; font-size: 11px; font-weight: 700; text-decoration: none; }
+.dashboard-card p { max-width: 490px; color: #6e8588; font-size: 12px; line-height: 1.6; }
+.dashboard-status-list { display: grid; gap: 5px; }
+.dashboard-status-row { display: flex; align-items: center; gap: 9px; padding: 9px 0; border-bottom: 1px solid #edf2f0; color: #668184; font-size: 12px; }
+.dashboard-status-row strong { margin-left: auto; color: #36575a; }
+.status-dot { width: 8px; height: 8px; border-radius: 50%; background: #a6b9b6; }
+.dashboard-stat--pending { background: #dba84a; }
+.dashboard-stat--analysis { background: #5e9ab7; }
+.dashboard-stat--attention { background: #d47c55; }
+.dashboard-stat--validation { background: #8e76ba; }
+.dashboard-stat--closed { background: #5c9a78; }
+.dashboard-flow { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; margin-top: 20px; color: #3f7190; font-size: 10px; font-weight: 700; }
+.dashboard-flow span { padding: 7px 9px; border-radius: 6px; background: #e8f2f8; }
+.dashboard-flow b { color: #91a5a6; }
+@media (max-width: 760px) {
+  .dashboard-hero { align-items: flex-start; flex-direction: column; padding: 22px; }
+  .dashboard-actions { justify-content: flex-start; }
+  .dashboard-stats, .dashboard-columns { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 520px) {
+  .dashboard-stats, .dashboard-columns { grid-template-columns: 1fr; }
+  .dashboard-hero h2 { font-size: 25px; }
+}
+.case-card__assignee { display: block; margin-top: 8px; color: #7f9696; font-size: 9px; }
 .access-page h2 { color: #17353b; font: 700 25px 'Space Grotesk', sans-serif; }
 .access-page p { margin: 0 0 18px; color: #6e8588; font-size: 13px; }
 .full-field { grid-column: 1 / -1; }

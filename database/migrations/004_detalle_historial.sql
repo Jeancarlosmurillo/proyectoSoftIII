@@ -1,0 +1,1 @@
+ALTER TABLE historial ADD COLUMN IF NOT EXISTS detalle TEXT;

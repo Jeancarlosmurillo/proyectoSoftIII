@@ -1,21 +1,31 @@
 import { Link } from 'react-router-dom'
-import { useAuth, usuariosPrueba } from '../../context/AuthContext'
+import { useAuth } from '../../context/AuthContext'
 
 export default function Navbar() {
-  const { usuarioActual, cambiarUsuario } = useAuth()
+  const { usuarioActual, usuarios, cambiarUsuario } = useAuth()
+  const grupos = [
+    { rol: 'solicitante', etiqueta: 'Solicitantes', usuarios: usuarios.filter((usuario) => usuario.rol === 'solicitante') },
+    { rol: 'agente', etiqueta: 'Agentes', usuarios: usuarios.filter((usuario) => usuario.rol === 'agente') },
+    { rol: 'validador', etiqueta: 'Validadores', usuarios: usuarios.filter((usuario) => usuario.rol === 'validador') },
+    { rol: 'administrador', etiqueta: 'Administradores', usuarios: usuarios.filter((usuario) => usuario.rol === 'administrador') },
+  ]
   return (
     <header className="app-header">
-      <Link className="brand" to="/bandeja" aria-label="Ir a la bandeja de casos">
+      <Link className="brand" to="/inicio" aria-label="Ir al inicio de CampusHelp">
         <div className="brand-mark">CH</div>
         <div>
           <p className="eyebrow">Mesa de servicios TI</p>
-          <h1>CampusHelp <span>-</span> Bandeja de Casos</h1>
+          <h1>CampusHelp <span>-</span> Mesa de servicios</h1>
         </div>
       </Link>
       <div className="global-user">
         <span className="profile-avatar">{usuarioActual.nombre.split(' ').map((item) => item[0]).join('').slice(0, 2)}</span>
         <select aria-label="Usuario de prueba" value={usuarioActual.id} onChange={(event) => cambiarUsuario(Number(event.target.value))}>
-          {usuariosPrueba.map((usuario) => <option key={usuario.id} value={usuario.id}>{usuario.nombre}{usuario.tipo ? ` · ${usuario.tipo}` : ` · ${usuario.rol}`}</option>)}
+          {grupos.map((grupo) => (
+            <optgroup key={grupo.rol} label={grupo.etiqueta}>
+              {grupo.usuarios.map((usuario) => <option key={usuario.id} value={usuario.id}>{usuario.nombre}{usuario.tipo ? ` · ${usuario.tipo}` : ''}</option>)}
+            </optgroup>
+          ))}
         </select>
       </div>
     </header>

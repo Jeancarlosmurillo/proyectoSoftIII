@@ -184,6 +184,63 @@ const casosController = {
     }
   },
 
+  editarCaso: async (req, res) => {
+    const { id } = req.params;
+    const { tipo, titulo, descripcion, prioridad, usuario_id, categoria_id, actor_id } = req.body;
+    if (!actor_id) return res.status(400).json({ error: 'DATOS_INVALIDOS', mensaje: 'actor_id: es obligatorio' });
+    try {
+      const admin = await db.query('SELECT rol FROM usuario WHERE id = $1 AND activo = TRUE', [actor_id]);
+      if (admin.rows[0]?.rol !== 'administrador') return res.status(403).json({ error: 'SIN_PERMISO', mensaje: 'Solo administradores pueden editar casos' });
+      const actual = await db.query('SELECT * FROM caso WHERE id = $1', [id]);
+      if (actual.rows.length === 0) return res.status(404).json({ error: 'NO_ENCONTRADO', mensaje: 'Caso no encontrado' });
+      if (tipo && !['Incidente', 'Solicitud'].includes(tipo)) return res.status(400).json({ error: 'DATOS_INVALIDOS', mensaje: 'tipo inválido' });
+      if (prioridad && !['P1', 'P2', 'P3'].includes(prioridad)) return res.status(400).json({ error: 'DATOS_INVALIDOS', mensaje: 'prioridad inválida' });
+      if (descripcion !== undefined && descripcion.length < 10) return res.status(400).json({ error: 'DATOS_INVALIDOS', mensaje: 'descripcion: mínimo 10 caracteres' });
+      if (categoria_id) {
+        const categoria = await db.query('SELECT id FROM categoria WHERE id = $1 AND activa = TRUE', [categoria_id]);
+        if (categoria.rows.length === 0) return res.status(400).json({ error: 'CATEGORIA_INVALIDA', mensaje: 'La categoría no existe o está inactiva' });
+      }
+      const anterior = actual.rows[0];
+      const result = await db.query(
+        `UPDATE caso SET tipo = COALESCE($1, tipo), titulo = COALESCE($2, titulo),
+         descripcion = COALESCE($3, descripcion), prioridad = COALESCE($4, prioridad),
+         usuario_id = COALESCE($5, usuario_id), categoria_id = COALESCE($6, categoria_id)
+         WHERE id = $7 RETURNING *`,
+        [tipo, titulo, descripcion, prioridad, usuario_id ?? null, categoria_id, id],
+      );
+      await db.query(
+        `INSERT INTO historial (caso_id, evento, estado_anterior, estado_nuevo, usuario_id)
+         VALUES ($1, 'Caso editado', $2, $2, $3)`,
+        [id, anterior.estado, actor_id],
+      );
+      res.json(result.rows[0]);
+    } catch (error) {
+      res.status(500).json({ error: 'INTERNO', mensaje: 'Error interno del servidor' });
+    }
+  },
+
+  eliminarCaso: async (req, res) => {
+    const { id } = req.params;
+    const { usuario_id } = req.body;
+    if (!usuario_id) return res.status(400).json({ error: 'DATOS_INVALIDOS', mensaje: 'usuario_id: es obligatorio' });
+    const client = await db.pool.connect();
+    try {
+      await client.query('BEGIN');
+      const admin = await client.query('SELECT rol FROM usuario WHERE id = $1 AND activo = TRUE', [usuario_id]);
+      if (admin.rows[0]?.rol !== 'administrador') { await client.query('ROLLBACK'); return res.status(403).json({ error: 'SIN_PERMISO', mensaje: 'Solo administradores pueden eliminar casos' }); }
+      const caso = await client.query('SELECT * FROM caso WHERE id = $1 FOR UPDATE', [id]);
+      if (caso.rows.length === 0) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'NO_ENCONTRADO', mensaje: 'Caso no encontrado' }); }
+      await client.query('DELETE FROM historial WHERE caso_id = $1', [id]);
+      await client.query('DELETE FROM atencion WHERE caso_id = $1', [id]);
+      await client.query('DELETE FROM caso WHERE id = $1', [id]);
+      await client.query('COMMIT');
+      res.status(204).send();
+    } catch (error) {
+      await client.query('ROLLBACK');
+      res.status(500).json({ error: 'INTERNO', mensaje: 'Error interno del servidor' });
+    } finally { client.release(); }
+  },
+
   asignarCaso: async (req, res) => {
     const { id } = req.params;
     const { usuario_id } = req.body;
@@ -230,16 +287,27 @@ const casosController = {
           mensaje: 'Solo agentes pueden asignarse casos'
         });
       }
+      if (caso.estado === 'Pendiente') {
+        const wip = await client.query(`SELECT COUNT(*) FROM caso WHERE estado = 'En análisis'`);
+        if (Number(wip.rows[0].count) >= 3) {
+          await client.query('ROLLBACK');
+          return res.status(409).json({ error: 'WIP_ALCANZADO', mensaje: 'El límite WIP de En análisis fue alcanzado' });
+        }
+      }
 
       await client.query(
-        'UPDATE caso SET agente_id = $1, fecha_asignacion = CURRENT_TIMESTAMP WHERE id = $2',
+        `UPDATE caso
+         SET agente_id = $1,
+             fecha_asignacion = CURRENT_TIMESTAMP,
+             estado = CASE WHEN estado = 'Pendiente' THEN 'En análisis' ELSE estado END
+         WHERE id = $2`,
         [usuario_id, id]
       );
 
       await client.query(
         `INSERT INTO historial (caso_id, evento, estado_anterior, estado_nuevo, usuario_id)
-         VALUES ($1, 'Agente asignado', $2, $2, $3)`,
-        [id, caso.estado, usuario_id]
+         VALUES ($1, 'Agente asignado', $2, $3, $4)`,
+        [id, caso.estado, caso.estado === 'Pendiente' ? 'En análisis' : caso.estado, usuario_id]
       );
 
       await client.query('COMMIT');
@@ -249,6 +317,49 @@ const casosController = {
     } catch (error) {
       await client.query('ROLLBACK');
       res.status(500).json({ error: 'INTERNO', mensaje: 'Error interno del servidor' });
+    } finally {
+      client.release();
+    }
+  },
+
+  desasignarCaso: async (req, res) => {
+    const { id } = req.params;
+    const { usuario_id } = req.body;
+    if (!usuario_id) return res.status(400).json({ error: 'DATOS_INVALIDOS', mensaje: 'usuario_id: es obligatorio' });
+    const client = await db.pool.connect();
+    try {
+      await client.query('BEGIN');
+      const admin = await client.query('SELECT rol FROM usuario WHERE id = $1 AND activo = TRUE', [usuario_id]);
+      if (admin.rows[0]?.rol !== 'administrador') {
+        await client.query('ROLLBACK');
+        return res.status(403).json({ error: 'SIN_PERMISO', mensaje: 'Solo administradores pueden desasignar casos' });
+      }
+      const caso = await client.query('SELECT * FROM caso WHERE id = $1 FOR UPDATE', [id]);
+      if (!caso.rows.length) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'NO_ENCONTRADO', mensaje: 'Caso no encontrado' });
+      }
+      if (!caso.rows[0].agente_id) {
+        await client.query('ROLLBACK');
+        return res.status(409).json({ error: 'CASO_SIN_ASIGNAR', mensaje: 'El caso ya está sin agente asignado' });
+      }
+      await client.query(
+        `UPDATE caso SET agente_id = NULL, fecha_asignacion = NULL,
+         estado = CASE WHEN estado = 'En análisis' THEN 'Pendiente' ELSE estado END
+         WHERE id = $1`,
+        [id]
+      );
+      await client.query(
+        `INSERT INTO historial (caso_id, evento, estado_anterior, estado_nuevo, usuario_id)
+         VALUES ($1, 'Agente desasignado', $2, $3, $4)`,
+        [id, caso.rows[0].estado, caso.rows[0].estado === 'En análisis' ? 'Pendiente' : caso.rows[0].estado, usuario_id]
+      );
+      await client.query('COMMIT');
+      const result = await db.query('SELECT * FROM caso WHERE id = $1', [id]);
+      return res.json(result.rows[0]);
+    } catch (error) {
+      await client.query('ROLLBACK');
+      return res.status(500).json({ error: 'INTERNO', mensaje: 'Error interno del servidor' });
     } finally {
       client.release();
     }
@@ -303,12 +414,79 @@ const casosController = {
         [id, diagnostico, solucion, usuario_id]
       );
 
-      await client.query('COMMIT');
+      const validacion = await client.query(
+        `SELECT COUNT(*)::int AS total FROM caso WHERE estado = 'En validación'`
+      );
+      if (validacion.rows[0].total >= 2) {
+        await client.query('ROLLBACK');
+        return res.status(409).json({
+          error: 'LIMITE_WIP',
+          mensaje: 'No se puede enviar el caso: el límite WIP de En validación fue alcanzado'
+        });
+      }
+      await client.query(
+        `UPDATE caso SET estado = 'En validación' WHERE id = $1`,
+        [id]
+      );
+      await client.query(
+        `INSERT INTO historial (caso_id, evento, estado_anterior, estado_nuevo, usuario_id, detalle)
+         VALUES ($1, 'Atención registrada', 'En atención', 'En validación', $2, $3)`,
+        [id, usuario_id, `Diagnóstico: ${diagnostico}. Solución: ${solucion}`]
+      );
 
-      res.status(201).json(result.rows[0]);
+      await client.query('COMMIT');
+      const casoActualizado = await db.query('SELECT * FROM caso WHERE id = $1', [id]);
+      res.status(201).json(casoActualizado.rows[0]);
     } catch (error) {
       await client.query('ROLLBACK');
       res.status(500).json({ error: 'INTERNO', mensaje: 'Error interno del servidor' });
+    } finally {
+      client.release();
+    }
+  },
+
+  registrarAnalisis: async (req, res) => {
+    const { id } = req.params;
+    const { diagnostico, abordaje, usuario_id } = req.body;
+    if (!diagnostico || diagnostico.trim().length < 10 || !abordaje || abordaje.trim().length < 10) {
+      return res.status(400).json({
+        error: 'DATOS_INVALIDOS',
+        mensaje: 'El diagnóstico y el abordaje deben tener al menos 10 caracteres'
+      });
+    }
+    if (!usuario_id) {
+      return res.status(400).json({ error: 'DATOS_INVALIDOS', mensaje: 'usuario_id: es obligatorio' });
+    }
+    const client = await db.pool.connect();
+    try {
+      await client.query('BEGIN');
+      const casoResult = await client.query('SELECT * FROM caso WHERE id = $1 FOR UPDATE', [id]);
+      if (casoResult.rows.length === 0) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'NO_ENCONTRADO', mensaje: 'Caso no encontrado' });
+      }
+      const caso = casoResult.rows[0];
+      if (caso.estado !== 'En análisis' || caso.agente_id !== usuario_id) {
+        await client.query('ROLLBACK');
+        return res.status(403).json({ error: 'SIN_PERMISO', mensaje: 'Solo el agente asignado puede registrar el análisis' });
+      }
+      const wip = await client.query(`SELECT COUNT(*)::int AS total FROM caso WHERE estado = 'En atención'`);
+      if (wip.rows[0].total >= 3) {
+        await client.query('ROLLBACK');
+        return res.status(409).json({ error: 'LIMITE_WIP', mensaje: 'No se puede avanzar: el límite WIP de En atención fue alcanzado' });
+      }
+      await client.query(`UPDATE caso SET estado = 'En atención' WHERE id = $1`, [id]);
+      await client.query(
+        `INSERT INTO historial (caso_id, evento, estado_anterior, estado_nuevo, usuario_id, detalle)
+         VALUES ($1, 'Análisis registrado', 'En análisis', 'En atención', $2, $3)`,
+        [id, usuario_id, `Diagnóstico inicial: ${diagnostico}. Abordaje: ${abordaje}`]
+      );
+      await client.query('COMMIT');
+      const actualizado = await db.query('SELECT * FROM caso WHERE id = $1', [id]);
+      return res.json(actualizado.rows[0]);
+    } catch (error) {
+      await client.query('ROLLBACK');
+      return res.status(500).json({ error: 'INTERNO', mensaje: 'Error interno del servidor' });
     } finally {
       client.release();
     }
@@ -461,6 +639,23 @@ const casosController = {
           mensaje: 'Las transiciones desde "En validación" deben hacerse por el endpoint de validación'
         });
       }
+      if (rol === 'agente' && caso.agente_id === usuario_id && caso.estado === 'En análisis' && estado === 'En atención') {
+        await client.query('ROLLBACK');
+        return res.status(409).json({
+          error: 'ANALISIS_REQUERIDO',
+          mensaje: 'Registra el análisis y el abordaje antes de pasar el caso a atención'
+        });
+      }
+      if (rol === 'agente' && caso.agente_id === usuario_id && caso.estado === 'En atención' && estado === 'En validación') {
+        const atencionResult = await client.query('SELECT id FROM atencion WHERE caso_id = $1', [id]);
+        if (atencionResult.rows.length === 0) {
+          await client.query('ROLLBACK');
+          return res.status(409).json({
+            error: 'ATENCION_REQUERIDA',
+            mensaje: 'Registra la solución antes de enviar el caso a validación'
+          });
+        }
+      }
 
       const transiciones = TRANSICIONES_VALIDAS[caso.estado];
       if (!transiciones || !transiciones.includes(estado)) {
@@ -469,6 +664,14 @@ const casosController = {
           error: 'TRANSICION_INVALIDA',
           mensaje: `Transición inválida de "${caso.estado}" a "${estado}"`
         });
+      }
+      const limitesWip = { 'En análisis': 3, 'En atención': 3, 'En validación': 2 };
+      if (limitesWip[estado]) {
+        const wip = await client.query('SELECT COUNT(*) FROM caso WHERE estado = $1', [estado]);
+        if (Number(wip.rows[0].count) >= limitesWip[estado]) {
+          await client.query('ROLLBACK');
+          return res.status(409).json({ error: 'WIP_ALCANZADO', mensaje: `El límite WIP de ${estado} fue alcanzado` });
+        }
       }
 
       if (estado === 'Cerrada') {

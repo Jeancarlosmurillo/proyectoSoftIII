@@ -85,7 +85,7 @@ h1 span { color: #9ab0b1; font-weight: 500; }
 .kanban-column--at-limit .wip-count { color: #bd5c3f; background: #f8d9c9; }
 .wip-alert { display: inline-flex; align-items: center; gap: 4px; margin: 9px 0 0 15px; color: #c36143; font-size: 9px; font-weight: 700; }
 .wip-alert span { display: grid; place-items: center; width: 13px; height: 13px; border-radius: 50%; color: white; background: #d87855; font-size: 9px; }
-.column-cards { display: flex; flex-direction: column; gap: 9px; padding: 10px; }
+.column-cards { display: flex; flex-direction: column; gap: 9px; max-height: min(62vh, 620px); overflow-y: auto; padding: 10px; }
 .case-card { position: relative; padding: 12px 12px 10px; border: 1px solid #dae6e3; border-left: 3px solid #5d9fc8; border-radius: 8px; background: #fff; box-shadow: 0 2px 4px rgba(38, 73, 72, .025); }
 .case-card--incidente { border-left-color: #e57b5c; }
 .case-card__topline, .case-card__footer { justify-content: space-between; gap: 8px; }

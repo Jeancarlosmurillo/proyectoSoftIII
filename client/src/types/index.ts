@@ -13,7 +13,7 @@ export type AreaTI =
   | 'Cuentas y acceso'
   | 'Plataformas académicas'
 export type Prioridad = 'P1 urgente' | 'P2 normal' | 'P3 baja'
-export type RolUsuario = 'solicitante' | 'agente' | 'administrador'
+export type RolUsuario = 'solicitante' | 'agente' | 'validador' | 'administrador'
 export type TipoSolicitante = 'Estudiante' | 'Docente' | 'Personal administrativo'
 
 export interface UsuarioSesion {
@@ -40,7 +40,7 @@ export interface Caso {
   expedite?: boolean
 }
 
-export type TipoEventoHistorial = 'Caso creado' | 'Caso asignado' | 'Cambio de estado' | 'Caso editado' | 'Caso eliminado'
+export type TipoEventoHistorial = 'Caso creado' | 'Caso asignado' | 'Cambio de estado' | 'Caso editado' | 'Caso eliminado' | 'Validación aprobada' | 'Validación devuelta'
 
 export interface EventoHistorial {
   id: number
@@ -51,6 +51,19 @@ export interface EventoHistorial {
   usuario_id: number
   fecha: string
   detalle?: string
+}
+
+export interface Atencion {
+  id: number
+  caso_id: number
+  diagnostico: string
+  solucion: string
+  fecha: string
+  agente_id: number
+}
+
+export interface DetalleCaso extends Caso {
+  atencion?: Atencion
 }
 
 export interface NuevoCaso {

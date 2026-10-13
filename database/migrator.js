@@ -10,11 +10,11 @@ const pool = new Pool({
 async function ejecutarMigraciones() {
   const client = await pool.connect();
   try {
-    await client.query('CREATE TABLE IF NOT EXISTS migraciones (
+    await client.query(`CREATE TABLE IF NOT EXISTS migraciones (
       id SERIAL PRIMARY KEY,
       filename VARCHAR(255) UNIQUE NOT NULL,
       ejecutada_en TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-    )');
+    )`);
 
     const migrationsDir = path.join(__dirname, 'migrations');
     const archivos = fs.readdirSync(migrationsDir)

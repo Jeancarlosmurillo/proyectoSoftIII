@@ -30,6 +30,12 @@ Solicitante, Agente de soporte, Validador, Administrador.
 Propuesta (confirmar con el frontend): el usuario actual llega en el encabezado
 X-Usuario-Id y el backend consulta su rol. Sin usuario válido → 401; rol sin permiso → 403.
 
+### Secciones de la interfaz por rol
+- **Solicitante:** Mis casos y Registrar nuevo caso. Puede consultar el detalle de sus casos.
+- **Agente:** Bandeja operativa y Mis asignaciones. Puede tomar casos disponibles, atender los casos asignados y avanzar el flujo.
+- **Validador:** Casos por validar. Puede revisar soluciones en `En validación`, aprobarlas o devolverlas a atención.
+- **Administrador:** Bandeja operativa, Todos los casos, Registrar nuevo caso e Indicadores. Puede editar, eliminar, asignar y desasignar casos.
+
 ## Modelo de datos mínimo
 - Usuario: id, nombre, correo, rol, activo
 - Area: id, nombre, descripcion, activa

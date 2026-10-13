@@ -2,6 +2,13 @@ const request = require('supertest');
 const app = require('../src/app');
 const db = require('../src/config/database');
 
+let TEST_SOLICITANTE_ID;
+let TEST_AGENT_ID;
+let TEST_VALIDATOR_ID;
+let TEST_ADMIN_ID;
+let TEST_HARDWARE_CATEGORY_ID;
+let TEST_SOFTWARE_CATEGORY_ID;
+
 beforeAll(async () => {
   await db.query(`INSERT INTO area (nombre, descripcion) VALUES ('Hardware', 'Equipos') ON CONFLICT (nombre) DO NOTHING`);
   await db.query(`INSERT INTO area (nombre, descripcion) VALUES ('Software', 'Aplicaciones') ON CONFLICT (nombre) DO NOTHING`);
@@ -12,6 +19,12 @@ beforeAll(async () => {
   await db.query(`INSERT INTO usuario (nombre, correo, rol) VALUES ('Carlos', 'carlos@test.com', 'agente') ON CONFLICT (correo) DO NOTHING`);
   await db.query(`INSERT INTO usuario (nombre, correo, rol) VALUES ('Maria', 'maria@test.com', 'validador') ON CONFLICT (correo) DO NOTHING`);
   await db.query(`INSERT INTO usuario (nombre, correo, rol) VALUES ('Pedro', 'pedro@test.com', 'administrador') ON CONFLICT (correo) DO NOTHING`);
+  TEST_SOLICITANTE_ID = (await db.query(`SELECT id FROM usuario WHERE correo = 'ana@test.com'`)).rows[0].id;
+  TEST_AGENT_ID = (await db.query(`SELECT id FROM usuario WHERE correo = 'carlos@test.com'`)).rows[0].id;
+  TEST_VALIDATOR_ID = (await db.query(`SELECT id FROM usuario WHERE correo = 'maria@test.com'`)).rows[0].id;
+  TEST_ADMIN_ID = (await db.query(`SELECT id FROM usuario WHERE correo = 'pedro@test.com'`)).rows[0].id;
+  TEST_HARDWARE_CATEGORY_ID = (await db.query(`SELECT id FROM categoria WHERE nombre = 'Computador'`)).rows[0].id;
+  TEST_SOFTWARE_CATEGORY_ID = (await db.query(`SELECT id FROM categoria WHERE nombre = 'Instalación'`)).rows[0].id;
 });
 
 afterAll(async () => {
@@ -27,8 +40,8 @@ describe('POST /api/casos', () => {
         titulo: 'Wi-Fi no funciona',
         descripcion: 'No puedo conectarme al Wi-Fi institucional desde el edificio A',
         prioridad: 'P1',
-        usuario_id: 1,
-        categoria_id: 1
+        usuario_id: TEST_SOLICITANTE_ID,
+        categoria_id: TEST_HARDWARE_CATEGORY_ID
       });
 
     expect(res.status).toBe(201);
@@ -45,8 +58,8 @@ describe('POST /api/casos', () => {
         titulo: 'Instalar Visual Studio',
         descripcion: 'Necesito que instalen Visual Studio en mi equipo institucional',
         prioridad: 'P2',
-        usuario_id: 1,
-        categoria_id: 3
+        usuario_id: TEST_SOLICITANTE_ID,
+        categoria_id: TEST_SOFTWARE_CATEGORY_ID
       });
 
     expect(res.status).toBe(201);
@@ -62,8 +75,8 @@ describe('POST /api/casos', () => {
         titulo: 'Wi-Fi',
         descripcion: 'Corta',
         prioridad: 'P1',
-        usuario_id: 1,
-        categoria_id: 1
+        usuario_id: TEST_SOLICITANTE_ID,
+        categoria_id: TEST_HARDWARE_CATEGORY_ID
       });
 
     expect(res.status).toBe(400);
@@ -79,8 +92,8 @@ describe('POST /api/casos', () => {
         titulo: 'Problema',
         descripcion: 'Descripción suficientemente larga',
         prioridad: 'P1',
-        usuario_id: 1,
-        categoria_id: 1
+        usuario_id: TEST_SOLICITANTE_ID,
+        categoria_id: TEST_HARDWARE_CATEGORY_ID
       });
 
     expect(res.status).toBe(400);
@@ -95,8 +108,8 @@ describe('POST /api/casos', () => {
         titulo: 'Problema',
         descripcion: 'Descripción suficientemente larga',
         prioridad: 'P5',
-        usuario_id: 1,
-        categoria_id: 1
+        usuario_id: TEST_SOLICITANTE_ID,
+        categoria_id: TEST_HARDWARE_CATEGORY_ID
       });
 
     expect(res.status).toBe(400);
@@ -111,7 +124,7 @@ describe('POST /api/casos', () => {
         titulo: 'Problema',
         descripcion: 'Descripción suficientemente larga',
         prioridad: 'P1',
-        usuario_id: 1,
+        usuario_id: TEST_SOLICITANTE_ID,
         categoria_id: 9999
       });
 
@@ -136,10 +149,10 @@ describe('GET /api/casos', () => {
   });
 
   test('Filtrar por solicitante (HU-02)', async () => {
-    const res = await request(app).get('/api/casos?usuario_id=1');
+    const res = await request(app).get(`/api/casos?usuario_id=${TEST_SOLICITANTE_ID}`);
     expect(res.status).toBe(200);
     res.body.forEach(caso => {
-      expect(caso.usuario_id).toBe(1);
+      expect(caso.usuario_id).toBe(TEST_SOLICITANTE_ID);
     });
   });
 
@@ -161,8 +174,8 @@ describe('GET /api/casos/:id', () => {
         titulo: 'Test detalle',
         descripcion: 'Descripción de prueba para detalle',
         prioridad: 'P2',
-        usuario_id: 1,
-        categoria_id: 1
+        usuario_id: TEST_SOLICITANTE_ID,
+        categoria_id: TEST_HARDWARE_CATEGORY_ID
       });
 
     const casoId = crearRes.body.id;
@@ -182,20 +195,20 @@ describe('GET /api/casos/:id', () => {
         titulo: 'Test detalle con atención',
         descripcion: 'Descripción de prueba para detalle con atención',
         prioridad: 'P2',
-        usuario_id: 1,
-        categoria_id: 1
+        usuario_id: TEST_SOLICITANTE_ID,
+        categoria_id: TEST_HARDWARE_CATEGORY_ID
       });
 
     const casoId = crearRes.body.id;
-    await request(app).post(`/api/casos/${casoId}/asignar`).send({ usuario_id: 2 });
-    await request(app).patch(`/api/casos/${casoId}/estado`).send({ estado: 'En análisis', usuario_id: 2 });
-    await request(app).patch(`/api/casos/${casoId}/estado`).send({ estado: 'En atención', usuario_id: 2 });
+    await request(app).post(`/api/casos/${casoId}/asignar`).send({ usuario_id: TEST_AGENT_ID });
+    await request(app).patch(`/api/casos/${casoId}/estado`).send({ estado: 'En análisis', usuario_id: TEST_AGENT_ID });
+    await request(app).patch(`/api/casos/${casoId}/estado`).send({ estado: 'En atención', usuario_id: TEST_AGENT_ID });
     await request(app)
       .post(`/api/casos/${casoId}/atencion`)
       .send({
         diagnostico: 'Falla en el access point',
         solucion: 'Reemplazo del equipo',
-        usuario_id: 2
+        usuario_id: TEST_AGENT_ID
       });
 
     const res = await request(app).get(`/api/casos/${casoId}`);
@@ -221,15 +234,15 @@ describe('GET /api/casos/:id/historial', () => {
         titulo: 'Test historial',
         descripcion: 'Descripción de prueba para historial',
         prioridad: 'P2',
-        usuario_id: 1,
-        categoria_id: 1
+        usuario_id: TEST_SOLICITANTE_ID,
+        categoria_id: TEST_HARDWARE_CATEGORY_ID
       });
 
     const casoId = crearRes.body.id;
 
     await request(app)
       .patch(`/api/casos/${casoId}/estado`)
-      .send({ estado: 'En análisis', usuario_id: 2 });
+      .send({ estado: 'En análisis', usuario_id: TEST_AGENT_ID });
 
     const res = await request(app).get(`/api/casos/${casoId}/historial`);
 
@@ -249,15 +262,15 @@ describe('PATCH /api/casos/:id/estado', () => {
         titulo: 'Test transición',
         descripcion: 'Descripción de prueba para transición',
         prioridad: 'P2',
-        usuario_id: 1,
-        categoria_id: 1
+        usuario_id: TEST_SOLICITANTE_ID,
+        categoria_id: TEST_HARDWARE_CATEGORY_ID
       });
 
     const casoId = crearRes.body.id;
 
     const res = await request(app)
       .patch(`/api/casos/${casoId}/estado`)
-      .send({ estado: 'En análisis', usuario_id: 2 });
+      .send({ estado: 'En análisis', usuario_id: TEST_AGENT_ID });
 
     expect(res.status).toBe(200);
     expect(res.body.estado).toBe('En análisis');
@@ -271,15 +284,15 @@ describe('PATCH /api/casos/:id/estado', () => {
         titulo: 'Test inválida',
         descripcion: 'Descripción de prueba para transición inválida',
         prioridad: 'P2',
-        usuario_id: 1,
-        categoria_id: 1
+        usuario_id: TEST_SOLICITANTE_ID,
+        categoria_id: TEST_HARDWARE_CATEGORY_ID
       });
 
     const casoId = crearRes.body.id;
 
     const res = await request(app)
       .patch(`/api/casos/${casoId}/estado`)
-      .send({ estado: 'En atención', usuario_id: 2 });
+      .send({ estado: 'En atención', usuario_id: TEST_AGENT_ID });
 
     expect(res.status).toBe(409);
     expect(res.body.error).toBe('TRANSICION_INVALIDA');
@@ -293,15 +306,15 @@ describe('PATCH /api/casos/:id/estado', () => {
         titulo: 'Test CP-04',
         descripcion: 'Descripción de prueba para transacción',
         prioridad: 'P2',
-        usuario_id: 1,
-        categoria_id: 1
+        usuario_id: TEST_SOLICITANTE_ID,
+        categoria_id: TEST_HARDWARE_CATEGORY_ID
       });
 
     const casoId = crearRes.body.id;
 
     await request(app)
       .patch(`/api/casos/${casoId}/estado`)
-      .send({ estado: 'En análisis', usuario_id: 2 });
+      .send({ estado: 'En análisis', usuario_id: TEST_AGENT_ID });
 
     const histRes = await request(app).get(`/api/casos/${casoId}/historial`);
     const cambioEvento = histRes.body.find(h => h.evento === 'Cambio de estado');
@@ -319,15 +332,15 @@ describe('PATCH /api/casos/:id/estado', () => {
         titulo: 'Test 403',
         descripcion: 'Descripción de prueba para permiso',
         prioridad: 'P2',
-        usuario_id: 1,
-        categoria_id: 1
+        usuario_id: TEST_SOLICITANTE_ID,
+        categoria_id: TEST_HARDWARE_CATEGORY_ID
       });
 
     const casoId = crearRes.body.id;
 
     const res = await request(app)
       .patch(`/api/casos/${casoId}/estado`)
-      .send({ estado: 'En análisis', usuario_id: 1 });
+      .send({ estado: 'En análisis', usuario_id: TEST_SOLICITANTE_ID });
 
     expect(res.status).toBe(403);
     expect(res.body.error).toBe('SIN_PERMISO');
@@ -341,29 +354,29 @@ describe('PATCH /api/casos/:id/estado', () => {
         titulo: 'Test cerrado',
         descripcion: 'Descripción de prueba para caso cerrado',
         prioridad: 'P2',
-        usuario_id: 1,
-        categoria_id: 1
+        usuario_id: TEST_SOLICITANTE_ID,
+        categoria_id: TEST_HARDWARE_CATEGORY_ID
       });
 
     const casoId = crearRes.body.id;
 
-    await request(app).post(`/api/casos/${casoId}/asignar`).send({ usuario_id: 2 });
-    await request(app).patch(`/api/casos/${casoId}/estado`).send({ estado: 'En análisis', usuario_id: 2 });
-    await request(app).patch(`/api/casos/${casoId}/estado`).send({ estado: 'En atención', usuario_id: 2 });
-    await request(app).patch(`/api/casos/${casoId}/estado`).send({ estado: 'En validación', usuario_id: 2 });
+    await request(app).post(`/api/casos/${casoId}/asignar`).send({ usuario_id: TEST_AGENT_ID });
+    await request(app).patch(`/api/casos/${casoId}/estado`).send({ estado: 'En análisis', usuario_id: TEST_AGENT_ID });
+    await request(app).patch(`/api/casos/${casoId}/estado`).send({ estado: 'En atención', usuario_id: TEST_AGENT_ID });
+    await request(app).patch(`/api/casos/${casoId}/estado`).send({ estado: 'En validación', usuario_id: TEST_AGENT_ID });
 
     await db.query(
       `INSERT INTO atencion (caso_id, diagnostico, solucion, agente_id) VALUES ($1, $2, $3, $4)`,
-      [casoId, 'Falla de red', 'Reinicio de router', 2]
+      [casoId, 'Falla de red', 'Reinicio de router', TEST_AGENT_ID]
     );
 
     await request(app)
       .post(`/api/casos/${casoId}/validacion`)
-      .send({ accion: 'aprobar', usuario_id: 3 });
+      .send({ accion: 'aprobar', usuario_id: TEST_VALIDATOR_ID });
 
     const res = await request(app)
       .patch(`/api/casos/${casoId}/estado`)
-      .send({ estado: 'En análisis', usuario_id: 2 });
+      .send({ estado: 'En análisis', usuario_id: TEST_AGENT_ID });
 
     expect(res.status).toBe(409);
     expect(res.body.error).toBe('ESTADO_CONFLICTO');
@@ -379,18 +392,18 @@ describe('POST /api/casos/:id/asignar', () => {
         titulo: 'Test asignación',
         descripcion: 'Descripción de prueba para asignación',
         prioridad: 'P2',
-        usuario_id: 1,
-        categoria_id: 1
+        usuario_id: TEST_SOLICITANTE_ID,
+        categoria_id: TEST_HARDWARE_CATEGORY_ID
       });
 
     const casoId = crearRes.body.id;
 
     const res = await request(app)
       .post(`/api/casos/${casoId}/asignar`)
-      .send({ usuario_id: 2 });
+      .send({ usuario_id: TEST_AGENT_ID });
 
     expect(res.status).toBe(200);
-    expect(res.body.agente_id).toBe(2);
+    expect(res.body.agente_id).toBe(TEST_AGENT_ID);
     expect(res.body.fecha_asignacion).toBeDefined();
   });
 
@@ -402,17 +415,17 @@ describe('POST /api/casos/:id/asignar', () => {
         titulo: 'Test duplicado',
         descripcion: 'Descripción de prueba para duplicado',
         prioridad: 'P2',
-        usuario_id: 1,
-        categoria_id: 1
+        usuario_id: TEST_SOLICITANTE_ID,
+        categoria_id: TEST_HARDWARE_CATEGORY_ID
       });
 
     const casoId = crearRes.body.id;
 
-    await request(app).post(`/api/casos/${casoId}/asignar`).send({ usuario_id: 2 });
+    await request(app).post(`/api/casos/${casoId}/asignar`).send({ usuario_id: TEST_AGENT_ID });
 
     const res = await request(app)
       .post(`/api/casos/${casoId}/asignar`)
-      .send({ usuario_id: 2 });
+      .send({ usuario_id: TEST_AGENT_ID });
 
     expect(res.status).toBe(409);
     expect(res.body.error).toBe('CASO_YA_ASIGNADO');
@@ -426,15 +439,15 @@ describe('POST /api/casos/:id/asignar', () => {
         titulo: 'Test permiso asignar',
         descripcion: 'Descripción de prueba para permiso asignar',
         prioridad: 'P2',
-        usuario_id: 1,
-        categoria_id: 1
+        usuario_id: TEST_SOLICITANTE_ID,
+        categoria_id: TEST_HARDWARE_CATEGORY_ID
       });
 
     const casoId = crearRes.body.id;
 
     const res = await request(app)
       .post(`/api/casos/${casoId}/asignar`)
-      .send({ usuario_id: 1 });
+      .send({ usuario_id: TEST_SOLICITANTE_ID });
 
     expect(res.status).toBe(403);
     expect(res.body.error).toBe('SIN_PERMISO');
@@ -450,28 +463,28 @@ describe('POST /api/casos/:id/atencion', () => {
         titulo: 'Test atención',
         descripcion: 'Descripción de prueba para atención',
         prioridad: 'P2',
-        usuario_id: 1,
-        categoria_id: 1
+        usuario_id: TEST_SOLICITANTE_ID,
+        categoria_id: TEST_HARDWARE_CATEGORY_ID
       });
 
     const casoId = crearRes.body.id;
 
-    await request(app).post(`/api/casos/${casoId}/asignar`).send({ usuario_id: 2 });
-    await request(app).patch(`/api/casos/${casoId}/estado`).send({ estado: 'En análisis', usuario_id: 2 });
-    await request(app).patch(`/api/casos/${casoId}/estado`).send({ estado: 'En atención', usuario_id: 2 });
+    await request(app).post(`/api/casos/${casoId}/asignar`).send({ usuario_id: TEST_AGENT_ID });
+    await request(app).patch(`/api/casos/${casoId}/estado`).send({ estado: 'En análisis', usuario_id: TEST_AGENT_ID });
+    await request(app).patch(`/api/casos/${casoId}/estado`).send({ estado: 'En atención', usuario_id: TEST_AGENT_ID });
 
     const res = await request(app)
       .post(`/api/casos/${casoId}/atencion`)
       .send({
         diagnostico: 'Falla en el access point',
         solucion: 'Reemplazo del equipo',
-        usuario_id: 2
+        usuario_id: TEST_AGENT_ID
       });
 
     expect(res.status).toBe(201);
     expect(res.body.diagnostico).toBe('Falla en el access point');
     expect(res.body.solucion).toBe('Reemplazo del equipo');
-    expect(res.body.agente_id).toBe(2);
+    expect(res.body.agente_id).toBe(TEST_AGENT_ID);
   });
 
   test('Rechazar atención por agente no asignado (403)', async () => {
@@ -482,15 +495,15 @@ describe('POST /api/casos/:id/atencion', () => {
         titulo: 'Test atención no asignado',
         descripcion: 'Descripción de prueba para atención no asignado',
         prioridad: 'P2',
-        usuario_id: 1,
-        categoria_id: 1
+        usuario_id: TEST_SOLICITANTE_ID,
+        categoria_id: TEST_HARDWARE_CATEGORY_ID
       });
 
     const casoId = crearRes.body.id;
 
-    await request(app).post(`/api/casos/${casoId}/asignar`).send({ usuario_id: 2 });
-    await request(app).patch(`/api/casos/${casoId}/estado`).send({ estado: 'En análisis', usuario_id: 2 });
-    await request(app).patch(`/api/casos/${casoId}/estado`).send({ estado: 'En atención', usuario_id: 2 });
+    await request(app).post(`/api/casos/${casoId}/asignar`).send({ usuario_id: TEST_AGENT_ID });
+    await request(app).patch(`/api/casos/${casoId}/estado`).send({ estado: 'En análisis', usuario_id: TEST_AGENT_ID });
+    await request(app).patch(`/api/casos/${casoId}/estado`).send({ estado: 'En atención', usuario_id: TEST_AGENT_ID });
 
     await db.query(
       `INSERT INTO usuario (nombre, correo, rol) VALUES ('Otro Agente', 'otro@test.com', 'agente') ON CONFLICT (correo) DO NOTHING`
@@ -517,20 +530,20 @@ describe('POST /api/casos/:id/atencion', () => {
         titulo: 'Test atención estado',
         descripcion: 'Descripción de prueba para atención estado',
         prioridad: 'P2',
-        usuario_id: 1,
-        categoria_id: 1
+        usuario_id: TEST_SOLICITANTE_ID,
+        categoria_id: TEST_HARDWARE_CATEGORY_ID
       });
 
     const casoId = crearRes.body.id;
 
-    await request(app).post(`/api/casos/${casoId}/asignar`).send({ usuario_id: 2 });
+    await request(app).post(`/api/casos/${casoId}/asignar`).send({ usuario_id: TEST_AGENT_ID });
 
     const res = await request(app)
       .post(`/api/casos/${casoId}/atencion`)
       .send({
         diagnostico: 'Diagnóstico prematuro',
         solucion: 'Solución prematura',
-        usuario_id: 2
+        usuario_id: TEST_AGENT_ID
       });
 
     expect(res.status).toBe(409);
@@ -547,20 +560,20 @@ describe('POST /api/casos/:id/validacion', () => {
         titulo: 'Test devolución',
         descripcion: 'Descripción de prueba para devolución',
         prioridad: 'P2',
-        usuario_id: 1,
-        categoria_id: 1
+        usuario_id: TEST_SOLICITANTE_ID,
+        categoria_id: TEST_HARDWARE_CATEGORY_ID
       });
 
     const casoId = crearRes.body.id;
 
-    await request(app).post(`/api/casos/${casoId}/asignar`).send({ usuario_id: 2 });
-    await request(app).patch(`/api/casos/${casoId}/estado`).send({ estado: 'En análisis', usuario_id: 2 });
-    await request(app).patch(`/api/casos/${casoId}/estado`).send({ estado: 'En atención', usuario_id: 2 });
-    await request(app).patch(`/api/casos/${casoId}/estado`).send({ estado: 'En validación', usuario_id: 2 });
+    await request(app).post(`/api/casos/${casoId}/asignar`).send({ usuario_id: TEST_AGENT_ID });
+    await request(app).patch(`/api/casos/${casoId}/estado`).send({ estado: 'En análisis', usuario_id: TEST_AGENT_ID });
+    await request(app).patch(`/api/casos/${casoId}/estado`).send({ estado: 'En atención', usuario_id: TEST_AGENT_ID });
+    await request(app).patch(`/api/casos/${casoId}/estado`).send({ estado: 'En validación', usuario_id: TEST_AGENT_ID });
 
     const res = await request(app)
       .post(`/api/casos/${casoId}/validacion`)
-      .send({ accion: 'devolver', comentario: 'Falta información', usuario_id: 3 });
+      .send({ accion: 'devolver', comentario: 'Falta información', usuario_id: TEST_VALIDATOR_ID });
 
     expect(res.status).toBe(200);
     expect(res.body.estado).toBe('En atención');
@@ -574,20 +587,20 @@ describe('POST /api/casos/:id/validacion', () => {
         titulo: 'Test aprobación',
         descripcion: 'Descripción de prueba para aprobación',
         prioridad: 'P2',
-        usuario_id: 1,
-        categoria_id: 1
+        usuario_id: TEST_SOLICITANTE_ID,
+        categoria_id: TEST_HARDWARE_CATEGORY_ID
       });
 
     const casoId = crearRes.body.id;
 
-    await request(app).post(`/api/casos/${casoId}/asignar`).send({ usuario_id: 2 });
-    await request(app).patch(`/api/casos/${casoId}/estado`).send({ estado: 'En análisis', usuario_id: 2 });
-    await request(app).patch(`/api/casos/${casoId}/estado`).send({ estado: 'En atención', usuario_id: 2 });
-    await request(app).patch(`/api/casos/${casoId}/estado`).send({ estado: 'En validación', usuario_id: 2 });
+    await request(app).post(`/api/casos/${casoId}/asignar`).send({ usuario_id: TEST_AGENT_ID });
+    await request(app).patch(`/api/casos/${casoId}/estado`).send({ estado: 'En análisis', usuario_id: TEST_AGENT_ID });
+    await request(app).patch(`/api/casos/${casoId}/estado`).send({ estado: 'En atención', usuario_id: TEST_AGENT_ID });
+    await request(app).patch(`/api/casos/${casoId}/estado`).send({ estado: 'En validación', usuario_id: TEST_AGENT_ID });
 
     const res = await request(app)
       .post(`/api/casos/${casoId}/validacion`)
-      .send({ accion: 'aprobar', usuario_id: 3 });
+      .send({ accion: 'aprobar', usuario_id: TEST_VALIDATOR_ID });
 
     expect(res.status).toBe(200);
     expect(res.body.estado).toBe('Cerrada');
@@ -602,20 +615,20 @@ describe('POST /api/casos/:id/validacion', () => {
         titulo: 'Test validación solicitante',
         descripcion: 'Descripción de prueba para validación solicitante',
         prioridad: 'P2',
-        usuario_id: 1,
-        categoria_id: 1
+        usuario_id: TEST_SOLICITANTE_ID,
+        categoria_id: TEST_HARDWARE_CATEGORY_ID
       });
 
     const casoId = crearRes.body.id;
 
-    await request(app).post(`/api/casos/${casoId}/asignar`).send({ usuario_id: 2 });
-    await request(app).patch(`/api/casos/${casoId}/estado`).send({ estado: 'En análisis', usuario_id: 2 });
-    await request(app).patch(`/api/casos/${casoId}/estado`).send({ estado: 'En atención', usuario_id: 2 });
-    await request(app).patch(`/api/casos/${casoId}/estado`).send({ estado: 'En validación', usuario_id: 2 });
+    await request(app).post(`/api/casos/${casoId}/asignar`).send({ usuario_id: TEST_AGENT_ID });
+    await request(app).patch(`/api/casos/${casoId}/estado`).send({ estado: 'En análisis', usuario_id: TEST_AGENT_ID });
+    await request(app).patch(`/api/casos/${casoId}/estado`).send({ estado: 'En atención', usuario_id: TEST_AGENT_ID });
+    await request(app).patch(`/api/casos/${casoId}/estado`).send({ estado: 'En validación', usuario_id: TEST_AGENT_ID });
 
     const res = await request(app)
       .post(`/api/casos/${casoId}/validacion`)
-      .send({ accion: 'aprobar', usuario_id: 1 });
+      .send({ accion: 'aprobar', usuario_id: TEST_SOLICITANTE_ID });
 
     expect(res.status).toBe(403);
     expect(res.body.error).toBe('SIN_PERMISO');
@@ -629,20 +642,20 @@ describe('POST /api/casos/:id/validacion', () => {
         titulo: 'Test validación agente',
         descripcion: 'Descripción de prueba para validación agente',
         prioridad: 'P2',
-        usuario_id: 1,
-        categoria_id: 1
+        usuario_id: TEST_SOLICITANTE_ID,
+        categoria_id: TEST_HARDWARE_CATEGORY_ID
       });
 
     const casoId = crearRes.body.id;
 
-    await request(app).post(`/api/casos/${casoId}/asignar`).send({ usuario_id: 2 });
-    await request(app).patch(`/api/casos/${casoId}/estado`).send({ estado: 'En análisis', usuario_id: 2 });
-    await request(app).patch(`/api/casos/${casoId}/estado`).send({ estado: 'En atención', usuario_id: 2 });
-    await request(app).patch(`/api/casos/${casoId}/estado`).send({ estado: 'En validación', usuario_id: 2 });
+    await request(app).post(`/api/casos/${casoId}/asignar`).send({ usuario_id: TEST_AGENT_ID });
+    await request(app).patch(`/api/casos/${casoId}/estado`).send({ estado: 'En análisis', usuario_id: TEST_AGENT_ID });
+    await request(app).patch(`/api/casos/${casoId}/estado`).send({ estado: 'En atención', usuario_id: TEST_AGENT_ID });
+    await request(app).patch(`/api/casos/${casoId}/estado`).send({ estado: 'En validación', usuario_id: TEST_AGENT_ID });
 
     const res = await request(app)
       .post(`/api/casos/${casoId}/validacion`)
-      .send({ accion: 'aprobar', usuario_id: 2 });
+      .send({ accion: 'aprobar', usuario_id: TEST_AGENT_ID });
 
     expect(res.status).toBe(403);
     expect(res.body.error).toBe('SIN_PERMISO');
@@ -656,20 +669,20 @@ describe('POST /api/casos/:id/validacion', () => {
         titulo: 'Test cerrar sin atención',
         descripcion: 'Descripción de prueba para cerrar sin atención',
         prioridad: 'P2',
-        usuario_id: 1,
-        categoria_id: 1
+        usuario_id: TEST_SOLICITANTE_ID,
+        categoria_id: TEST_HARDWARE_CATEGORY_ID
       });
 
     const casoId = crearRes.body.id;
 
-    await request(app).post(`/api/casos/${casoId}/asignar`).send({ usuario_id: 2 });
-    await request(app).patch(`/api/casos/${casoId}/estado`).send({ estado: 'En análisis', usuario_id: 2 });
-    await request(app).patch(`/api/casos/${casoId}/estado`).send({ estado: 'En atención', usuario_id: 2 });
-    await request(app).patch(`/api/casos/${casoId}/estado`).send({ estado: 'En validación', usuario_id: 2 });
+    await request(app).post(`/api/casos/${casoId}/asignar`).send({ usuario_id: TEST_AGENT_ID });
+    await request(app).patch(`/api/casos/${casoId}/estado`).send({ estado: 'En análisis', usuario_id: TEST_AGENT_ID });
+    await request(app).patch(`/api/casos/${casoId}/estado`).send({ estado: 'En atención', usuario_id: TEST_AGENT_ID });
+    await request(app).patch(`/api/casos/${casoId}/estado`).send({ estado: 'En validación', usuario_id: TEST_AGENT_ID });
 
     const res = await request(app)
       .patch(`/api/casos/${casoId}/estado`)
-      .send({ estado: 'Cerrada', usuario_id: 2 });
+      .send({ estado: 'Cerrada', usuario_id: TEST_AGENT_ID });
 
     expect(res.status).toBe(409);
     expect(res.body.error).toBe('TRANSICION_INVALIDA');
@@ -683,20 +696,20 @@ describe('POST /api/casos/:id/validacion', () => {
         titulo: 'Test transición validación',
         descripcion: 'Descripción de prueba para transición validación',
         prioridad: 'P2',
-        usuario_id: 1,
-        categoria_id: 1
+        usuario_id: TEST_SOLICITANTE_ID,
+        categoria_id: TEST_HARDWARE_CATEGORY_ID
       });
 
     const casoId = crearRes.body.id;
 
-    await request(app).post(`/api/casos/${casoId}/asignar`).send({ usuario_id: 2 });
-    await request(app).patch(`/api/casos/${casoId}/estado`).send({ estado: 'En análisis', usuario_id: 2 });
-    await request(app).patch(`/api/casos/${casoId}/estado`).send({ estado: 'En atención', usuario_id: 2 });
-    await request(app).patch(`/api/casos/${casoId}/estado`).send({ estado: 'En validación', usuario_id: 2 });
+    await request(app).post(`/api/casos/${casoId}/asignar`).send({ usuario_id: TEST_AGENT_ID });
+    await request(app).patch(`/api/casos/${casoId}/estado`).send({ estado: 'En análisis', usuario_id: TEST_AGENT_ID });
+    await request(app).patch(`/api/casos/${casoId}/estado`).send({ estado: 'En atención', usuario_id: TEST_AGENT_ID });
+    await request(app).patch(`/api/casos/${casoId}/estado`).send({ estado: 'En validación', usuario_id: TEST_AGENT_ID });
 
     const res = await request(app)
       .patch(`/api/casos/${casoId}/estado`)
-      .send({ estado: 'Cerrada', usuario_id: 2 });
+      .send({ estado: 'Cerrada', usuario_id: TEST_AGENT_ID });
 
     expect(res.status).toBe(409);
     expect(res.body.error).toBe('TRANSICION_INVALIDA');
@@ -710,8 +723,8 @@ describe('GET /api/casos - filtros combinables', () => {
       titulo: 'Test filtro área',
       descripcion: 'Descripción de prueba para filtro por área',
       prioridad: 'P1',
-      usuario_id: 1,
-      categoria_id: 1
+      usuario_id: TEST_SOLICITANTE_ID,
+      categoria_id: TEST_HARDWARE_CATEGORY_ID
     });
 
     await request(app).post('/api/casos').send({
@@ -719,7 +732,7 @@ describe('GET /api/casos - filtros combinables', () => {
       titulo: 'Test filtro área 2',
       descripcion: 'Descripción de prueba para filtro por área 2',
       prioridad: 'P2',
-      usuario_id: 1,
+      usuario_id: TEST_SOLICITANTE_ID,
       categoria_id: 4
     });
 
@@ -748,7 +761,7 @@ describe('GET /api/casos - filtros combinables', () => {
     const res = await request(app).get('/api/casos?categoria_id=1');
     expect(res.status).toBe(200);
     res.body.forEach(caso => {
-      expect(caso.categoria_id).toBe(1);
+      expect(caso.categoria_id).toBe(TEST_SOLICITANTE_ID);
     });
   });
 });
@@ -760,8 +773,8 @@ describe('GET /api/indicadores', () => {
       titulo: 'Test indicadores',
       descripcion: 'Descripción de prueba para indicadores',
       prioridad: 'P1',
-      usuario_id: 1,
-      categoria_id: 1
+      usuario_id: TEST_SOLICITANTE_ID,
+      categoria_id: TEST_HARDWARE_CATEGORY_ID
     });
 
     const res = await request(app).get('/api/indicadores');
@@ -784,7 +797,7 @@ describe('POST /api/categorias', () => {
         nombre: nombreUnico,
         descripcion: 'Descripción de prueba',
         area_id: 1,
-        usuario_id: 4
+        usuario_id: TEST_ADMIN_ID
       });
 
     expect(res.status).toBe(201);
@@ -799,7 +812,7 @@ describe('POST /api/categorias', () => {
         nombre: 'Categoría no permitida',
         descripcion: 'Descripción de prueba',
         area_id: 1,
-        usuario_id: 2
+        usuario_id: TEST_AGENT_ID
       });
 
     expect(res.status).toBe(403);
@@ -813,7 +826,7 @@ describe('POST /api/categorias', () => {
         nombre: 'Categoría sin área',
         descripcion: 'Descripción de prueba',
         area_id: 9999,
-        usuario_id: 4
+        usuario_id: TEST_ADMIN_ID
       });
 
     expect(res.status).toBe(400);
@@ -836,7 +849,7 @@ describe('PATCH /api/categorias/:id', () => {
       .patch(`/api/categorias/${catId}`)
       .send({
         nombre: nombreUnico,
-        usuario_id: 4
+        usuario_id: TEST_ADMIN_ID
       });
 
     expect(res.status).toBe(200);
@@ -854,7 +867,7 @@ describe('PATCH /api/categorias/:id', () => {
     const catId = catResult.rows[0].id;
     const res = await request(app)
       .patch(`/api/categorias/${catId}/activar`)
-      .send({ activa: false, usuario_id: 4 });
+      .send({ activa: false, usuario_id: TEST_ADMIN_ID });
 
     expect(res.status).toBe(200);
     expect(res.body.activa).toBe(false);
@@ -866,7 +879,7 @@ describe('PATCH /api/categorias/:id', () => {
       const catId = casoResult.rows[0].categoria_id;
       const res = await request(app)
         .patch(`/api/categorias/${catId}/activar`)
-        .send({ activa: false, usuario_id: 4 });
+        .send({ activa: false, usuario_id: TEST_ADMIN_ID });
 
       expect(res.status).toBe(409);
       expect(res.body.error).toBe('CATEGORIA_EN_USO');
@@ -883,31 +896,31 @@ describe('Flujo completo - integración', () => {
         titulo: 'Test integración',
         descripcion: 'Descripción de prueba para integración',
         prioridad: 'P2',
-        usuario_id: 1,
-        categoria_id: 1
+        usuario_id: TEST_SOLICITANTE_ID,
+        categoria_id: TEST_HARDWARE_CATEGORY_ID
       });
 
     const casoId = crearRes.body.id;
     expect(crearRes.body.estado).toBe('Pendiente');
 
-    await request(app).post(`/api/casos/${casoId}/asignar`).send({ usuario_id: 2 });
+    await request(app).post(`/api/casos/${casoId}/asignar`).send({ usuario_id: TEST_AGENT_ID });
 
-    await request(app).patch(`/api/casos/${casoId}/estado`).send({ estado: 'En análisis', usuario_id: 2 });
-    await request(app).patch(`/api/casos/${casoId}/estado`).send({ estado: 'En atención', usuario_id: 2 });
+    await request(app).patch(`/api/casos/${casoId}/estado`).send({ estado: 'En análisis', usuario_id: TEST_AGENT_ID });
+    await request(app).patch(`/api/casos/${casoId}/estado`).send({ estado: 'En atención', usuario_id: TEST_AGENT_ID });
 
     await request(app)
       .post(`/api/casos/${casoId}/atencion`)
       .send({
         diagnostico: 'Falla de red',
         solucion: 'Reinicio de router',
-        usuario_id: 2
+        usuario_id: TEST_AGENT_ID
       });
 
-    await request(app).patch(`/api/casos/${casoId}/estado`).send({ estado: 'En validación', usuario_id: 2 });
+    await request(app).patch(`/api/casos/${casoId}/estado`).send({ estado: 'En validación', usuario_id: TEST_AGENT_ID });
 
     await request(app)
       .post(`/api/casos/${casoId}/validacion`)
-      .send({ accion: 'aprobar', usuario_id: 3 });
+      .send({ accion: 'aprobar', usuario_id: TEST_VALIDATOR_ID });
 
     const histRes = await request(app).get(`/api/casos/${casoId}/historial`);
 
@@ -933,13 +946,13 @@ describe('Categorías - tests adicionales', () => {
         nombre: nombreCat,
         descripcion: 'Categoría para desactivar',
         area_id: 1,
-        usuario_id: 4
+        usuario_id: TEST_ADMIN_ID
       });
     const catId = catRes.body.id;
 
     await request(app)
       .patch(`/api/categorias/${catId}/activar`)
-      .send({ activa: false, usuario_id: 4 });
+      .send({ activa: false, usuario_id: TEST_ADMIN_ID });
 
     const res = await request(app)
       .post('/api/casos')
@@ -948,7 +961,7 @@ describe('Categorías - tests adicionales', () => {
         titulo: 'Test categoría inactiva',
         descripcion: 'Descripción de prueba para categoría inactiva',
         prioridad: 'P2',
-        usuario_id: 1,
+        usuario_id: TEST_SOLICITANTE_ID,
         categoria_id: catId
       });
 
@@ -964,17 +977,17 @@ describe('Categorías - tests adicionales', () => {
         nombre: nombreCat,
         descripcion: 'Categoría para reactivar',
         area_id: 1,
-        usuario_id: 4
+        usuario_id: TEST_ADMIN_ID
       });
     const catId = catRes.body.id;
 
     await request(app)
       .patch(`/api/categorias/${catId}/activar`)
-      .send({ activa: false, usuario_id: 4 });
+      .send({ activa: false, usuario_id: TEST_ADMIN_ID });
 
     const res = await request(app)
       .patch(`/api/categorias/${catId}/activar`)
-      .send({ activa: true, usuario_id: 4 });
+      .send({ activa: true, usuario_id: TEST_ADMIN_ID });
 
     expect(res.status).toBe(200);
     expect(res.body.activa).toBe(true);
@@ -984,7 +997,7 @@ describe('Categorías - tests adicionales', () => {
     const res = await request(app).get('/api/categorias?area_id=1');
     expect(res.status).toBe(200);
     res.body.forEach(cat => {
-      expect(cat.area_id).toBe(1);
+      expect(cat.area_id).toBe(TEST_SOLICITANTE_ID);
     });
   });
 });

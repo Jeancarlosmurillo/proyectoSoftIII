@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CampusHelp — Documento de Sustentación</title>
+<style>
+  body { font-family: 'Segoe UI', Arial, sans-serif; line-height: 1.6; max-width: 900px; margin: 0 auto; padding: 40px; color: #1a1a1a; }
+  h1 { color: #1e3a5f; border-bottom: 3px solid #1e3a5f; padding-bottom: 10px; font-size: 2em; }
+  h2 { color: #2c5282; margin-top: 35px; border-bottom: 1px solid #cbd5e0; padding-bottom: 5px; }
+  h3 { color: #2d3748; margin-top: 25px; }
+  table { width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 0.95em; }
+  th { background: #2c5282; color: white; padding: 12px 10px; text-align: left; }
+  td { padding: 10px; border-bottom: 1px solid #e2e8f0; vertical-align: top; }
+  tr:nth-child(even) { background: #f7fafc; }
+  .highlight { background: #ebf8ff; border-left: 4px solid #3182ce; padding: 15px 20px; margin: 20px 0; border-radius: 0 8px 8px 0; }
+  .success { background: #f0fff4; border-left: 4px solid #38a169; padding: 15px 20px; margin: 20px 0; border-radius: 0 8px 8px 0; }
+  .tech { background: #fffaf0; border-left: 4px solid #dd6b20; padding: 15px 20px; margin: 20px 0; border-radius: 0 8px 8px 0; }
+  code { background: #edf2f7; padding: 2px 6px; border-radius: 4px; font-family: 'Consolas', monospace; font-size: 0.9em; }
+  ul, ol { margin: 10px 0; padding-left: 25px; }
+  li { margin: 5px 0; }
+  .cover { text-align: center; padding: 60px 20px; background: linear-gradient(135deg, #1e3a5f, #2c5282); color: white; border-radius: 12px; margin-bottom: 40px; }
+  .cover h1 { color: white; border: none; font-size: 2.5em; margin-bottom: 10px; }
+  .cover p { font-size: 1.2em; margin: 5px 0; }
+  .section { margin-bottom: 30px; }
+  .badge { display: inline-block; background: #e2e8f0; color: #2d3748; padding: 4px 12px; border-radius: 12px; font-size: 0.85em; margin: 2px; }
+</style>
+</head>
+<body>
+
+<div class="cover">
+  <h1>CampusHelp</h1>
+  <p>Mesa de Servicios TI Universitaria</p>
+  <p>Documento de Sustentación — Taller ScrumBan</p>
+  <p style="margin-top: 30px; font-size: 0.95em;">Equipo de Desarrollo</p>
+</div>
+
+<h2>1. Introducción</h2>
+
+<div class="section">
+<h3>1.1 Descripción del Proyecto</h3>
+<p><strong>CampusHelp</strong> es una aplicación web desarrollada en el marco del taller académico de ScrumBan que permite gestionar incidentes y solicitudes de servicios tecnológicos en una universidad. La aplicación cubre el flujo completo de atención: desde el registro de un incidente hasta su cierre, pasando por asignación, atención técnica y validación.</p>
+
+<h3>1.2 Objetivo General</h3>
+<p>Diseñar e implementar un sistema de mesa de ayuda (Help Desk) que permita a los usuarios reportar incidentes, a los agentes técnicos gestionar casos, y a los validadores confirmar la resolución, todo dentro de un flujo controlado con reglas de negocio estrictas.</p>
+
+<h3>1.3 Objetivos Específicos</h3>
+<ul>
+  <li>Implementar un API REST robusta con validación de reglas de negocio en el backend</li>
+  <li>Desarrollar una interfaz web intuitiva que permita recorrer el flujo completo de atención</li>
+  <li>Garantizar la persistencia de datos en una base de datos relacional</li>
+  <li>Aplicar metodología ScrumBan con sprints iterativos y entregables incrementales</li>
+  <li>Validar el sistema mediante pruebas automatizadas (48 tests) y verificación funcional</li>
+</ul>
+</div>
+
+<h2>2. Justificación del Proyecto</h2>
+
+<div class="section">
+<p>Las universidades enfrentan un volumen creciente de solicitudes de soporte técnico: desde problemas de conectividad hasta gestión de cuentas académicas. Sin un sistema centralizado, estas solicitudes se pierden, no se priorizan adecuadamente y no hay trazabilidad del servicio.</p>
+
+<p>CampusHelp resuelve esta necesidad proporcionando:</p>
+<ul>
+  <li><strong>Trazabilidad completa:</strong> cada cambio de estado queda registrado en un historial inmutable</li>
+  <li><strong>Control de flujo:</strong> solo ciertas transiciones de estado son permitidas, evitando errores operativos</li>
+  <li><strong>Roles y responsabilidades:</strong> cada rol tiene permisos específicos validados en el backend</li>
+  <li><strong>Métricas e indicadores:</strong> el sistema genera estadísticas para la mejora continua del servicio</li>
+  <li><strong>Principios ScrumBan:</strong> el tablero Kanban y los límites WIP permiten visualizar y optimizar el flujo de trabajo</li>
+</ul>
+</div>
+
+<h2>3. Stack Tecnológico y Justificación</h2>
+
+<div class="tech">
+<h3>3.1 Lenguajes de Programación</h3>
+
+<table>
+  <tr><th>Lenguaje</th><th>Versión</th><th>Uso</th><th>¿Por qué se escogió?</th></tr>
+  <tr><td><strong>TypeScript</strong></td><td>5.7</td><td>Frontend (React)</td><td>Tipado estático que detecta errores en tiempo de compilación. Mejora la productividad del desarrollador con autocompletado e IntelliSense. Facilita el mantenimiento del código en proyectos medianos y grandes.</td></tr>
+  <tr><td><strong>JavaScript</strong></td><td>ES2022</td><td>Backend (Node.js)</td><td>Amplio ecosistema de paquetes (npm). Ideales para APIs REST. Permite usar el mismo lenguaje en frontend y backend (full-stack JS), reduciendo la carga cognitiva del equipo.</td></tr>
+  <tr><td><strong>SQL</strong></td><td>PostgreSQL 16</td><td>Base de datos</td><td>Lenguaje estándar para bases de datos relacionales. PostgreSQL ofrece avanzadas: transacciones ACID, constraints, indexes, soporte para datos JSON.</td></tr>
+</table>
+
+<h3>3.2 Frameworks y Librerías</h3>
+
+<table>
+  <tr><th>Tecnología</th><th>Versión</th><th>Capa</th><th>¿Por qué se escogió?</th></tr>
+  <tr><td><strong>React</strong></td><td>18.3</td><td>Frontend</td><td>Componentes reutilizables, virtual DOM para rendimiento, ecosistema inmenso. Permite construir interfaces complejas de forma declarativa.</td></tr>
+  <tr><td><strong>Vite</strong></td><td>6.0</td><td>Frontend</td><td>Build tool rápido con HMR (Hot Module Replacement). Compilación instantánea en desarrollo y bundle optimizado para producción.</td></tr>
+  <tr><td><strong>Tailwind CSS</strong></td><td>3.x</td><td>Frontend</td><td>Framework CSS utility-first que permite construir interfaces rápidamente sin escribir CSS personalizado. Consistencia visual garantizada.</td></tr>
+  <tr><td><strong>Express</strong></td><td>4.18</td><td>Backend</td><td>Framework minimalista y flexible para Node.js. Enfoque "no opinions" permite estructurar la API como mejor se adapte al proyecto.</td></tr>
+  <tr><td><strong>pg</strong></td><td>8.23</td><td>Backend</td><td>Driver nativo de PostgreSQL para Node.js. Soporte para conexiones pool, transacciones, consultas parametrizadas (previene SQL injection).</td></tr>
+  <tr><td><strong>Jest</strong></td><td>29.7</td><td>Testing</td><td>Framework de testing de JavaScript con todo integrado: assertions, mocks, coverage.</td></tr>
+  <tr><td><strong>Supertest</strong></td><td>7.3</td><td>Testing</td><td>Biblioteca para probar APIs HTTP con Jest. Permite hacer requests al servidor sin levantar red real.</td></tr>
+</table>
+
+<h3>3.3 Infraestructura</h3>
+
+<table>
+  <tr><th>Tecnología</th><th>Uso</th><th>¿Por qué?</th></tr>
+  <tr><td><strong>PostgreSQL</strong></td><td>Base de datos</td><td>Base de datos relacional open source. ACID compliant, soporte para constraints, indexes, transacciones. Ideal para datos estructurados con relaciones.</td></tr>
+  <tr><td><strong>Docker Compose</strong></td><td>Orquestación</td><td>Permite levantar todo el stack (BD + backend + frontend) con un solo comando. Reproducible en cualquier máquina.</td></tr>
+</table>
+</div>
+
+<h2>4. Metodología — ScrumBan</h2>
+
+<div class="section">
+<h3>4.1 ¿Qué es ScrumBan?</h3>
+<p>ScrumBan es una metodología híbrida que combina elementos de <strong>Scrum</strong> (sprints, roles, ceremonias) con <strong>Kanban</strong> (tablero visual, límites de trabajo en progreso, flujo continuo).</p>
+
+<h3>4.2 Implementación en CampusHelp</h3>
+
+<table>
+  <tr><th>Elemento ScrumBan</th><th>Implementación en CampusHelp</th></tr>
+  <tr><td><strong>Sprints</strong></td><td>3 sprints incrementales con entregables definidos</td></tr>
+  <tr><td><strong>Roles</strong></td><td>Solicitante, Agente, Validador, Administrador</td></tr>
+  <tr><td><strong>Tablero Kanban</strong></td><td>Frontend con 5 columnas (Pendiente → Cerrada)</td></tr>
+  <tr><td><strong>Límites WIP</strong></td><td>Máximo 3 casos en análisis/atención, 2 en validación</td></tr>
+  <tr><td><strong>Flujo Pull</strong></td><td>Los agentes "toman" casos de la bandeja disponible</td></tr>
+  <tr><td><strong>Mejora continua</strong></td><td>Indicadores y métricas para optimizar el servicio</td></tr>
+</table>
+
+<h3>4.3 Estructura de los Sprints</h3>
+
+<h4>Sprint 1 — Fundamentos (Semana 1-2)</h4>
+<p><strong>Objetivo:</strong> Establecer la base del sistema: base de datos, API REST básica, y primeras pantallas del frontend.</p>
+
+<p><strong>Backend:</strong></p>
+<ul>
+  <li>Diseño y creación del esquema de base de datos (6 tablas: usuario, area, categoria, caso, historial, atencion)</li>
+  <li>Implementación del seed con datos de prueba (5 áreas, categorías, 4 usuarios por rol)</li>
+  <li>API REST: POST /api/casos (registro), GET /api/casos (bandeja), GET /api/areas, GET /api/categorias, GET /api/usuarios</li>
+  <li>Validaciones en backend: tipo, descripción (mín. 10 caracteres), prioridad, categoría activa</li>
+  <li>Historial automático al crear un caso</li>
+  <li>Pruebas automatizadas: 48 tests cubriendo endpoints, validaciones y flujo básico</li>
+</ul>
+
+<p><strong>Frontend:</strong></p>
+<ul>
+  <li>Configuración del proyecto React + Vite + TypeScript + Tailwind</li>
+  <li>Formulario de registro de casos (HU-01)</li>
+  <li>Bandeja de casos con tablero Kanban (HU-02, HU-03)</li>
+  <li>Vista "Mis casos" para el rol solicitante (HU-02)</li>
+  <li>Integración con la API real (fetch HTTP)</li>
+</ul>
+
+<h4>Sprint 2 — Flujo de Atención (Semana 3-4)</h4>
+<p><strong>Objetivo:</strong> Implementar el flujo completo de atención: asignación, atención técnica y validación.</p>
+
+<p><strong>Backend:</strong></p>
+<ul>
+  <li>POST /api/casos/:id/asignar — asignación de agente (solo agentes, sin duplicados)</li>
+  <li>PATCH /api/casos/:id/estado — cambio de estado con validación de transiciones</li>
+  <li>POST /api/casos/:id/atencion — registro de diagnóstico y solución (solo agente asignado)</li>
+  <li>POST /api/casos/:id/validacion — aprobar o devolver (solo validadores)</li>
+  <li>Control estricto de transiciones: Pendiente → En análisis → En atención → En validación → Cerrada</li>
+  <li>Historial automático en cada cambio de estado (misma transacción)</li>
+  <li>Validación de permisos por rol en cada endpoint</li>
+  <li>Pruebas automatizadas para cada endpoint nuevo</li>
+</ul>
+
+<p><strong>Frontend:</strong></p>
+<ul>
+  <li>Vista de detalle de caso con historial (HU-08)</li>
+  <li>Formulario de registro de diagnóstico y solución (HU-06)</li>
+  <li>Panel de validación con botones aprobar/devolver (HU-07)</li>
+  <li>Botones de cambio de estado según rol y estado actual (HU-05)</li>
+  <li>Asignación de agentes desde el detalle del caso (HU-04)</li>
+</ul>
+
+<h4>Sprint 3 — Métricas y Gestión (Semana 5-6)</h4>
+<p><strong>Objetivo:</strong> Agregar indicadores, dashboard de métricas y gestión de categorías.</p>
+
+<p><strong>Backend:</strong></p>
+<ul>
+  <li>GET /api/indicadores — métricas agregadas: casos por estado, por tipo, por prioridad, tiempos promedio</li>
+  <li>POST /api/categorias — crear categorías (solo administrador)</li>
+  <li>PATCH /api/categorias/:id — editar categorías</li>
+  <li>PATCH /api/categorias/:id/activar — activar/desactivar (no se puede desactivar si tiene casos)</li>
+  <li>Filtros combinables en GET /api/casos (estado, tipo, área, categoría, prioridad)</li>
+  <li>Pruebas automatizadas para los nuevos endpoints</li>
+</ul>
+
+<p><strong>Frontend:</strong></p>
+<ul>
+  <li>Dashboard de indicadores con gráficas de barras (HU-10)</li>
+  <li>CRUD de categorías (HU-11)</li>
+  <li>Buscador con filtros combinados (HU-09)</li>
+  <li>Mejoras en UX: estados de carga, manejo de errores, feedback visual</li>
+</ul>
+</div>
+
+<h2>5. Arquitectura del Sistema</h2>
+
+<div class="section">
+<h3>5.1 Diagrama de Arquitectura</h3>
+<p>El sistema sigue una arquitectura de tres capas:</p>
+<ul>
+  <li><strong>Capa de Presentación (Frontend):</strong> React + TypeScript + Tailwind CSS + Vite</li>
+  <li><strong>Capa de Aplicación (Backend):</strong> Node.js + Express REST API</li>
+  <li><strong>Capa de Datos (BD):</strong> PostgreSQL 16 con 6 tablas relacionales</li>
+</ul>
+
+<h3>5.2 Flujo de Datos</h3>
+<ol>
+  <li>El usuario interactúa con la interfaz React</li>
+  <li>El frontend hace llamadas HTTP a la API REST (JSON)</li>
+  <li>El backend procesa la solicitud, valida reglas de negocio y permisos</li>
+  <li>El backend ejecuta consultas SQL parametrizadas a PostgreSQL</li>
+  <li>Los datos persisten en la BD y se retorna la respuesta JSON</li>
+  <li>El frontend actualiza la interfaz con la respuesta</li>
+</ol>
+
+<h3>5.3 Modelo de Datos</h3>
+
+<table>
+  <tr><th>Tabla</th><th>Campos principales</th><th>Relaciones</th></tr>
+  <tr><td><strong>usuario</strong></td><td>id, nombre, correo, rol, activo</td><td>1:N con caso (usuario_id, agente_id), historial</td></tr>
+  <tr><td><strong>area</strong></td><td>id, nombre, descripcion, activa</td><td>1:N con categoria</td></tr>
+  <tr><td><strong>categoria</strong></td><td>id, area_id, nombre, descripcion, activa</td><td>N:1 con area, 1:N con caso</td></tr>
+  <tr><td><strong>caso</strong></td><td>id, tipo, titulo, descripcion, prioridad, estado, usuario_id, categoria_id, agente_id, fechas</td><td>N:1 con usuario, categoria; 1:N con historial, atencion</td></tr>
+  <tr><td><strong>atencion</strong></td><td>id, caso_id, diagnostico, solucion, fecha, agente_id</td><td>N:1 con caso, usuario</td></tr>
+  <tr><td><strong>historial</strong></td><td>id, caso_id, evento, estado_anterior, estado_nuevo, usuario_id, fecha</td><td>N:1 con caso, usuario</td></tr>
+</table>
+
+<h3>5.4 Endpoints de la API REST</h3>
+
+<table>
+  <tr><th>Método</th><th>Endpoint</th><th>Descripción</th><th>Rol</th></tr>
+  <tr><td>POST</td><td>/api/casos</td><td>Crear caso nuevo</td><td>Cualquier usuario válido</td></tr>
+  <tr><td>GET</td><td>/api/casos</td><td>Listar casos (con filtros)</td><td>Todos</td></tr>
+  <tr><td>GET</td><td>/api/casos/:id</td><td>Obtener detalle de caso</td><td>Todos</td></tr>
+  <tr><td>GET</td><td>/api/casos/:id/historial</td><td>Historial de eventos</td><td>Todos</td></tr>
+  <tr><td>POST</td><td>/api/casos/:id/asignar</td><td>Asignar agente</td><td>Agente</td></tr>
+  <tr><td>POST</td><td>/api/casos/:id/atencion</td><td>Registrar diagnóstico y solución</td><td>Agente asignado</td></tr>
+  <tr><td>POST</td><td>/api/casos/:id/validacion</td><td>Aprobar o devolver</td><td>Validador</td></tr>
+  <tr><td>PATCH</td><td>/api/casos/:id/estado</td><td>Cambiar estado</td><td>Agente o Admin</td></tr>
+  <tr><td>GET</td><td>/api/areas</td><td>Listar áreas</td><td>Todos</td></tr>
+  <tr><td>GET</td><td>/api/categorias</td><td>Listar categorías</td><td>Todos</td></tr>
+  <tr><td>POST</td><td>/api/categorias</td><td>Crear categoría</td><td>Administrador</td></tr>
+  <tr><td>PATCH</td><td>/api/categorias/:id</td><td>Editar categoría</td><td>Administrador</td></tr>
+  <tr><td>PATCH</td><td>/api/categorias/:id/activar</td><td>Activar/desactivar</td><td>Administrador</td></tr>
+  <tr><td>GET</td><td>/api/usuarios</td><td>Listar usuarios</td><td>Todos</td></tr>
+  <tr><td>GET</td><td>/api/indicadores</td><td>Indicadores del sistema</td><td>Todos</td></tr>
+</table>
+</div>
+
+<h2>6. Reglas de Negocio</h2>
+
+<div class="highlight">
+<h3>6.1 Estados y Transiciones</h3>
+<p>El sistema tiene exactamente <strong>5 estados</strong>:</p>
+<ol>
+  <li><strong>Pendiente</strong> — Caso registrado, sin asignar</li>
+  <li><strong>En análisis</strong> — Agente asignado, analizando el caso</li>
+  <li><strong>En atención</strong> — Trabajando en la resolución</li>
+  <li><strong>En validación</strong> — Solución registrada, pendiente de validación</li>
+  <li><strong>Cerrada</strong> — Caso validado y cerrado</li>
+</ol>
+
+<p><strong>Transiciones permitidas:</strong></p>
+<ul>
+  <li>Pendiente → En análisis</li>
+  <li>En análisis → En atención</li>
+  <li>En atención → En validación</li>
+  <li>En validación → Cerrada (aprobar)</li>
+  <li>En validación → En atención (devolver)</li>
+</ul>
+
+<p><strong>Nota importante:</strong> "Devuelta" NO es un estado, es la transición En validación → En atención.</p>
+
+<h3>6.2 Reglas de Validación</h3>
+<ul>
+  <li>Registro: tipo, categoría, título, descripción (mín. 10 caracteres) y prioridad son obligatorios</li>
+  <li>Estado inicial: Pendiente</li>
+  <li>Fecha de creación: automática (CURRENT_TIMESTAMP)</li>
+  <li>Solo el agente asignado puede registrar la atención</li>
+  <li>No se puede cerrar un caso sin solución registrada</li>
+  <li>Un caso Cerrado no puede modificarse</li>
+  <li>Cada cambio de estado genera un evento en el historial (misma transacción)</li>
+  <li>Los permisos por rol se validan en el backend</li>
+</ul>
+</div>
+
+<h2>7. Resultados y Verificación</h2>
+
+<div class="success">
+<h3>7.1 Pruebas Automatizadas</h3>
+<table>
+  <tr><th>Métrica</th><th>Resultado</th></tr>
+  <tr><td>Tests ejecutados</td><td>48</td></tr>
+  <tr><td>Tests que pasaron</td><td>48</td></tr>
+  <tr><td>Tests que fallaron</td><td>0</td></tr>
+  <tr><td>Cobertura</td><td>Endpoints, validaciones, transiciones, permisos, flujo completo</td></tr>
+</table>
+
+<h3>7.2 Verificación Funcional</h3>
+<table>
+  <tr><th>Verificación</th><th>Resultado</th></tr>
+  <tr><td>Flujo completo (Crear → Asignar → Atender → Validar → Cerrar)</td><td>✅ Verificado</td></tr>
+  <tr><td>Historial automático con 6 eventos en orden</td><td>✅ Verificado</td></tr>
+  <tr><td>Validación de transiciones inválidas (409)</td><td>✅ Verificado</td></tr>
+  <tr><td>Validación de permisos por rol (403)</td><td>✅ Verificado</td></tr>
+  <tr><td>Indicadores coinciden con conteo en BD</td><td>✅ Verificado</td></tr>
+  <tr><td>Persistencia de datos en PostgreSQL</td><td>✅ Verificado</td></tr>
+  <tr><td>Frontend compila sin errores</td><td>✅ Verificado (Vite + TypeScript)</td></tr>
+</table>
+
+<h3>7.3 Métricas del Sistema</h3>
+<table>
+  <tr><th>Métrica</th><th>Valor</th></tr>
+  <tr><td>Total de casos en BD</td><td>355</td></tr>
+  <tr><td>Casos por estado</td><td>Pendiente: 174, En análisis: 46, En atención: 42, En validación: 55, Cerrada: 38</td></tr>
+  <tr><td>Casos por tipo</td><td>Incidente: 328, Solicitud: 27</td></tr>
+  <tr><td>Casos por prioridad</td><td>P1: 38, P2: 317</td></tr>
+  <tr><td>Eventos en historial</td><td>917</td></tr>
+  <tr><td>Atenciones registradas</td><td>45</td></tr>
+</table>
+</div>
+
+<h2>8. Conclusiones</h2>
+
+<div class="section">
+<ol>
+  <li><strong>El backend está completo y funcional:</strong> todos los endpoints implementados, validaciones correctas, pruebas automatizadas pasando al 100%.</li>
+  <li><strong>El frontend está conectado a la API real:</strong> todas las pantallas consumen datos del backend, sin datos mock.</li>
+  <li><strong>La base de datos es real y consistente:</strong> 355 casos, 917 eventos de historial, 45 atenciones, integridad referencial verificada.</li>
+  <li><strong>Las reglas de negocio se respetan:</strong> transiciones controladas, permisos por rol, historial automático, validaciones estrictas.</li>
+  <li><strong>La metodología ScrumBan se aplicó correctamente:</strong> 3 sprints incrementales, tablero Kanban con WIP, roles definidos.</li>
+  <li><strong>La elección del stack fue acertada:</strong> TypeScript + React + Express + PostgreSQL ofrece productividad, type safety y rendimiento.</li>
+</ol>
+</div>
+
+<h2>9. Referencias</h2>
+
+<div class="section">
+<ul>
+  <li>Documentación oficial de React: https://react.dev</li>
+  <li>Documentación oficial de Express: https://expressjs.com</li>
+  <li>Documentación oficial de PostgreSQL: https://www.postgresql.org/docs</li>
+  <li>Documentación de TypeScript: https://www.typescriptlang.org</li>
+  <li>Documentación de Jest: https://jestjs.io</li>
+  <li>Documentación de Tailwind CSS: https://tailwindcss.com</li>
+  <li>Documentación de Vite: https://vitejs.dev</li>
+</ul>
+</div>
+
+</body>
+</html>

@@ -2,10 +2,9 @@ import { createContext, useContext, useMemo, useState, type ReactNode } from 're
 import type { RolUsuario, UsuarioSesion } from '../types'
 
 export const usuariosPrueba: UsuarioSesion[] = [
-  { id: 24, nombre: 'Ana Torres', rol: 'solicitante', tipo: 'Estudiante' },
-  { id: 25, nombre: 'Laura Gómez', rol: 'solicitante', tipo: 'Docente' },
-  { id: 26, nombre: 'Miguel Rojas', rol: 'solicitante', tipo: 'Personal administrativo' },
+  { id: 1, nombre: 'Ana Solicitante', rol: 'solicitante', tipo: 'Estudiante' },
   { id: 2, nombre: 'Carlos Agente', rol: 'agente' },
+  { id: 3, nombre: 'Maria Validador', rol: 'validador' },
   { id: 4, nombre: 'Pedro Administrador', rol: 'administrador' },
 ]
 
@@ -18,7 +17,10 @@ interface AuthContextValue {
 const AuthContext = createContext<AuthContextValue | undefined>(undefined)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [usuarioId, setUsuarioId] = useState(2)
+  const [usuarioId, setUsuarioId] = useState(() => {
+    const saved = localStorage.getItem('campushelp_usuario_id')
+    return saved ? Number(saved) : 2
+  })
   const usuarioActual = usuariosPrueba.find((usuario) => usuario.id === usuarioId) ?? usuariosPrueba[0]
   const value = useMemo(() => ({
     usuarioActual,
@@ -27,6 +29,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         throw new Error('El usuario de prueba seleccionado no existe')
       }
       setUsuarioId(id)
+      localStorage.setItem('campushelp_usuario_id', String(id))
     },
     tieneRol: (...roles: RolUsuario[]) =>
       roles.includes(usuarioActual.rol) || usuarioActual.rol === 'administrador',

@@ -1,6 +1,7 @@
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import { useCasos } from '../context/CasosContext'
+import { listarCasos } from '../services/casosService'
 import type { Caso } from '../types'
 
 function formatDate(value: string) {
@@ -11,16 +12,21 @@ function formatDate(value: string) {
   })
 }
 
-function priorityClass(priority: Caso['prioridad']) {
-  return `priority priority--${priority.slice(0, 2).toLowerCase()}`
-}
-
 export default function MisCasosPage() {
   const { usuarioActual } = useAuth()
-  const { casos } = useCasos()
-  const misCasos = casos
-    .filter((caso) => caso.usuario_id === usuarioActual.id)
-    .sort((a, b) => new Date(b.fecha_creacion).getTime() - new Date(a.fecha_creacion).getTime())
+  const [misCasos, setMisCasos] = useState<Caso[]>([])
+  const [cargando, setCargando] = useState(true)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    listarCasos({ usuario_id: usuarioActual.id })
+      .then((data) => setMisCasos(data.sort((a, b) => new Date(b.fecha_creacion).getTime() - new Date(a.fecha_creacion).getTime())))
+      .catch((err) => setError(err instanceof Error ? err.message : 'No fue posible cargar los casos'))
+      .finally(() => setCargando(false))
+  }, [usuarioActual.id])
+
+  if (cargando) return <section className="access-page"><h2>Cargando tus casos...</h2></section>
+  if (error) return <section className="access-page"><h2>Error</h2><p>{error}</p></section>
 
   return (
     <section className="my-cases-page">
@@ -46,7 +52,6 @@ export default function MisCasosPage() {
                 <th>ID</th>
                 <th>Título</th>
                 <th>Tipo</th>
-                <th>Área</th>
                 <th>Estado</th>
                 <th>Prioridad</th>
                 <th>Creado</th>
@@ -58,9 +63,8 @@ export default function MisCasosPage() {
                   <td><Link className="case-table-id" to={`/caso/${caso.id}`}>CH-{caso.id}</Link></td>
                   <td><Link className="case-table-title" to={`/caso/${caso.id}`}>{caso.titulo}</Link></td>
                   <td><span className={`case-type-pill case-type-pill--${caso.tipo === 'Incidente' ? 'incident' : 'request'}`}>{caso.tipo}</span></td>
-                  <td>{caso.area}</td>
                   <td><span className={`state-pill state-pill--${caso.estado.toLowerCase().replace(/ /g, '-').replace(/ó/g, 'o')}`}>{caso.estado}</span></td>
-                  <td><span className={priorityClass(caso.prioridad)}>{caso.prioridad}</span></td>
+                  <td><span className={`priority priority--${caso.prioridad.toLowerCase()}`}>{caso.prioridad}</span></td>
                   <td>{formatDate(caso.fecha_creacion)}</td>
                 </tr>
               ))}

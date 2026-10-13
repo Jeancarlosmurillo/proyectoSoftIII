@@ -5,15 +5,15 @@ export type EstadoCaso =
   | 'En validación'
   | 'Cerrada'
 
-export type TipoCaso = 'Incidente' | 'Solicitud de servicio'
+export type TipoCaso = 'Incidente' | 'Solicitud'
 export type AreaTI =
   | 'Hardware'
   | 'Software'
   | 'Red y conectividad'
   | 'Cuentas y acceso'
   | 'Plataformas académicas'
-export type Prioridad = 'P1 urgente' | 'P2 normal' | 'P3 baja'
-export type RolUsuario = 'solicitante' | 'agente' | 'administrador'
+export type Prioridad = 'P1' | 'P2' | 'P3'
+export type RolUsuario = 'solicitante' | 'agente' | 'validador' | 'administrador'
 export type TipoSolicitante = 'Estudiante' | 'Docente' | 'Personal administrativo'
 
 export interface UsuarioSesion {
@@ -21,6 +21,30 @@ export interface UsuarioSesion {
   nombre: string
   rol: RolUsuario
   tipo?: TipoSolicitante
+}
+
+export interface Area {
+  id: number
+  nombre: string
+  descripcion: string
+  activa: boolean
+}
+
+export interface Categoria {
+  id: number
+  area_id: number
+  nombre: string
+  descripcion: string
+  activa: boolean
+}
+
+export interface Atencion {
+  id: number
+  caso_id: number
+  diagnostico: string
+  solucion: string
+  fecha: string
+  agente_id: number
 }
 
 export interface Caso {
@@ -36,11 +60,10 @@ export interface Caso {
   fecha_creacion: string
   fecha_asignacion: string | null
   fecha_cierre: string | null
-  area: AreaTI
-  expedite?: boolean
+  atencion?: Atencion
 }
 
-export type TipoEventoHistorial = 'Caso creado' | 'Caso asignado' | 'Cambio de estado' | 'Caso editado' | 'Caso eliminado'
+export type TipoEventoHistorial = 'Caso creado' | 'Agente asignado' | 'Cambio de estado' | 'Validación aprobada' | 'Validación devuelta'
 
 export interface EventoHistorial {
   id: number
@@ -50,7 +73,6 @@ export interface EventoHistorial {
   estado_nuevo?: EstadoCaso
   usuario_id: number
   fecha: string
-  detalle?: string
 }
 
 export interface NuevoCaso {
@@ -60,7 +82,12 @@ export interface NuevoCaso {
   prioridad: Prioridad
   usuario_id: number
   categoria_id: number
-  area: AreaTI
 }
 
-export type CambiosCaso = Partial<Pick<Caso, 'tipo' | 'titulo' | 'descripcion' | 'prioridad' | 'usuario_id' | 'categoria_id' | 'area' | 'agente_id' | 'expedite'>>
+export interface Indicadores {
+  casos_por_estado: { estado: string; total: string }[]
+  casos_por_tipo: { tipo: string; total: string }[]
+  casos_por_prioridad: { prioridad: string; total: string }[]
+  tiempo_promedio_atencion_horas: number | null
+  tiempo_promedio_asignacion_horas: number | null
+}
